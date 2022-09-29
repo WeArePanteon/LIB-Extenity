@@ -407,13 +407,61 @@ namespace Extenity.FileSystemToolbox
 
 		#region Delete Directory
 
-		public static bool Delete(string path)
+		private static void _Delete(string path, bool recursive)
+		{
+			try
+			{
+				Directory.Delete(path, false);
+			}
+			catch (IOException) 
+			{
+				Thread.Sleep(1); // Allow system to release file handles by waiting and then try once more
+				Directory.Delete(path, false);
+			}
+			catch (UnauthorizedAccessException)
+			{
+				Thread.Sleep(1); // Allow system to release file handles by waiting and then try once more
+				Directory.Delete(path, false);
+			}
+		}
+
+		public static bool DeleteIfEmpty(string path)
+		{
+			AssetDatabaseRuntimeTools.ReleaseCachedFileHandles(); // Make Unity release the files to prevent any IO errors.
+
+			if (Directory.Exists(path) &&
+				Directory.GetFiles(path).Length == 0 &&
+			    Directory.GetDirectories(path).Length == 0)
+			{
+				_Delete(path, false);
+				return true;
+			}
+			return false;
+		}
+
+		/// <summary>
+		/// Source: https://stackoverflow.com/questions/329355/cannot-delete-directory-with-directory-deletepath-true
+		/// </summary>
+		public static bool DeleteWithContent(string path)
 		{
 			AssetDatabaseRuntimeTools.ReleaseCachedFileHandles(); // Make Unity release the files to prevent any IO errors.
 
 			if (Directory.Exists(path))
 			{
-				Directory.Delete(path, true);
+				var files = Directory.GetFiles(path);
+				var subDirectories = Directory.GetDirectories(path);
+
+				foreach (var file in files)
+				{
+					FileTools.Delete(file);
+				}
+
+				foreach (var subDirectory in subDirectories)
+				{
+					DeleteWithContent(subDirectory);
+				}
+
+				_Delete(path, false);
 				return true;
 			}
 			return false;
@@ -442,10 +490,7 @@ namespace Extenity.FileSystemToolbox
 
 			try
 			{
-				if (Directory.GetFiles(directoryPath).Length == 0 && Directory.GetDirectories(directoryPath).Length == 0)
-				{
-					Directory.Delete(directoryPath, false);
-				}
+				DeleteIfEmpty(directoryPath);
 			}
 			catch
 			{
@@ -476,7 +521,7 @@ namespace Extenity.FileSystemToolbox
 			{
 				try
 				{
-					fileInfos[i].DeleteFileEvenIfReadOnly();
+					FileTools.Delete(fileInfos[i]);
 					deletedFiles.Add(fileInfos[i]);
 				}
 				catch
@@ -504,7 +549,7 @@ namespace Extenity.FileSystemToolbox
 			{
 				try
 				{
-					fileInfos[i].DeleteFileEvenIfReadOnly();
+					FileTools.Delete(fileInfos[i]);
 					deletedFiles.Add(fileInfos[i]);
 				}
 				catch
@@ -517,62 +562,45 @@ namespace Extenity.FileSystemToolbox
 		}
 
 		/// <returns>Returns false if something goes wrong. Check 'failedFiles' list for detailed information.</returns>
-		public static bool ClearDLLArtifacts(string directoryPath, SearchOption searchOption, ref List<FileInfo> deletedFiles, ref List<FileInfo> failedFiles)
+		public static bool ClearDLLArtifacts(string directoryPath, SearchOption searchOption, List<FileInfo> deletedFiles, List<FileInfo> failedFiles)
 		{
 			AssetDatabaseRuntimeTools.ReleaseCachedFileHandles(); // Make Unity release the files to prevent any IO errors.
 
-			if (deletedFiles == null)
-				deletedFiles = New.List<FileInfo>();
-			if (failedFiles == null)
-				failedFiles = New.List<FileInfo>();
-			var error = false;
+			var initialErrors = failedFiles.Count;
 			var directoryInfo = new DirectoryInfo(directoryPath);
-			var fileInfos = directoryInfo.GetFiles("*.dll", searchOption).Where(fileInfo => fileInfo.Extension == ".dll").ToList();
-			for (int i = 0; i < fileInfos.Count; i++)
+
+			FindAndDeleteIncludingXMLCounterparts(".dll");
+			FindAndDeleteIncludingXMLCounterparts(".mdb");
+			FindAndDeleteIncludingXMLCounterparts(".pdb");
+
+			return initialErrors != failedFiles.Count;
+
+			void FindAndDeleteIncludingXMLCounterparts(string extension)
 			{
-				var dllFullPath = fileInfos[i].FullName;
-				var dllDirectoryPath = Path.GetDirectoryName(dllFullPath);
-				var dllFullPathWithoutExtension = Path.Combine(
-					dllDirectoryPath,
-					Path.GetFileNameWithoutExtension(dllFullPath));
+				var fileInfos = directoryInfo.GetFiles("*" + extension, searchOption)
+				                             .Where(fileInfo => fileInfo.Extension == extension)
+				                             .ToList();
+				for (int i = 0; i < fileInfos.Count; i++)
+				{
+					try
+					{
+						var fullPath = fileInfos[i].FullName;
+						var fullPathWithoutExtension = Path.Combine(
+							Path.GetDirectoryName(fullPath),
+							Path.GetFileNameWithoutExtension(fullPath));
 
-				try
-				{
-					var path = dllFullPathWithoutExtension + ".mdb";
-					if (FileTools.DeleteFileEvenIfReadOnly(path, true))
-						deletedFiles.Add(new FileInfo(path));
-				}
-				catch
-				{
-					failedFiles.Add(fileInfos[i]);
-					error = true;
-				}
-
-				try
-				{
-					var path = dllFullPathWithoutExtension + ".pdb";
-					if (FileTools.DeleteFileEvenIfReadOnly(path, true))
-						deletedFiles.Add(new FileInfo(path));
-				}
-				catch
-				{
-					failedFiles.Add(fileInfos[i]);
-					error = true;
-				}
-
-				try
-				{
-					var path = dllFullPathWithoutExtension + ".xml";
-					if (FileTools.DeleteFileEvenIfReadOnly(path, true))
-						deletedFiles.Add(new FileInfo(path));
-				}
-				catch
-				{
-					failedFiles.Add(fileInfos[i]);
-					error = true;
+						var path = fullPathWithoutExtension + ".xml";
+						if (FileTools.Delete(path, true))
+						{
+							deletedFiles.Add(new FileInfo(path));
+						}
+					}
+					catch
+					{
+						failedFiles.Add(fileInfos[i]);
+					}
 				}
 			}
-			return !error;
 		}
 
 		#endregion

@@ -1,4 +1,4 @@
-﻿#if !DisableExtenityScreenManagement
+﻿#if ExtenityScreenManagement
 
 using System;
 using System.Linq;
@@ -24,7 +24,7 @@ namespace Extenity.UIToolbox.ScreenManagement
 
 		protected void OnDisable()
 		{
-#if UseLegacyMessenger
+#if ExtenityMessenger && UseLegacyMessenger
 			Messenger.DeregisterAllEvents(this);
 #else
 			#error Not implemented yet!

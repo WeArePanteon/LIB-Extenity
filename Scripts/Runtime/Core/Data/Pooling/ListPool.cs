@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using JetBrains.Annotations;
 
 namespace Extenity.DataToolbox
 {
@@ -9,15 +8,15 @@ namespace Extenity.DataToolbox
 	/// <remarks>
 	/// Example usage for manually returning the List to the pool:
 	///
-	///    var theCollection = New.List<ItemType>(optionalCapacity);
-	///    // Do some stuff with theCollection
-	///    Release.List(ref theCollection);
+	///    var theList = New.List<ItemType>(optionalCapacity);
+	///    // Do some stuff with theList
+	///    Release.List(ref theList);
 	///
 	/// Example usage for automatically returning the List to the pool:
 	///
-	///    using (New.List<ItemType>(out var theCollection, optionalCapacity))
+	///    using (New.List<ItemType>(out var theList, optionalCapacity))
 	///    {
-	///        // Do some stuff with theCollection
+	///        // Do some stuff with theList
 	///    }
 	/// </remarks>
 	internal static class ListPool<T>
@@ -26,7 +25,7 @@ namespace Extenity.DataToolbox
 
 		static ListPool()
 		{
-			Log.Verbose($"Creating {nameof(ListPool<T>)}<{typeof(T).Name}>");
+			// Log.Verbose($"Creating {nameof(ListPool<T>)}<{typeof(T).Name}>"); This log was nice to have. But caused chaos when using pooled lists in constructors.
 			ListPoolTools.RegisterForAllPoolsRelease(ReleasePool);
 		}
 
@@ -142,8 +141,15 @@ namespace Extenity.DataToolbox
 			collection = new List<T>(capacity);
 		}
 
-		internal static void New(out List<T> collection, [NotNull] IEnumerable<T> otherCollection)
+		internal static void New(out List<T> collection, IEnumerable<T> otherCollection)
 		{
+			if (otherCollection == null)
+			{
+				// Note that "List<T>(IEnumerable<T> collection)" constructor throws exception on null collections.
+				// But this pooling system is more forgiving. So we will just be overriding with an empty array
+				// to prevent these exceptions. Null collection is embraced as if it's an empty collection.
+				otherCollection = Array.Empty<T>();
+			}
 			lock (Pool)
 			{
 				if (Pool.Count > 0)
@@ -276,7 +282,7 @@ namespace Extenity.DataToolbox
 		/// collection might be tiny in size.
 		/// </param>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static List<T> List<T>([NotNull] IEnumerable<T> otherCollection)
+		public static List<T> List<T>(IEnumerable<T> otherCollection)
 		{
 			ListPool<T>.New(out var collection, otherCollection);
 			return collection;

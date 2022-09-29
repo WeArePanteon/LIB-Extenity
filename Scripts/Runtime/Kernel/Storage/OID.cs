@@ -1,4 +1,6 @@
-﻿using System;
+﻿#if ExtenityKernel
+
+using System;
 using Newtonsoft.Json;
 
 namespace Extenity.KernelToolbox
@@ -114,3 +116,5 @@ namespace Extenity.KernelToolbox
 	}
 
 }
+
+#endif

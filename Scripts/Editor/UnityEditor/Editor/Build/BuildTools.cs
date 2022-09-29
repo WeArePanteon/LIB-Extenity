@@ -117,7 +117,7 @@ namespace Extenity.BuildToolbox.Editor
 				    DirectoryTools.IsDirectoryEmptyOrOnlyContainsEmptySubdirectories(OutsideLocationBasePath))
 				{
 					Log.Info($"Removing empty directories at temporary location '{OutsideLocationBasePath}'.");
-					Directory.Delete(OutsideLocationBasePath, true);
+					DirectoryTools.DeleteWithContent(OutsideLocationBasePath);
 				}
 
 				AssetDatabaseTools.ManuallyMoveFilesAndDirectoriesWithMetaAndEnsureCompleted(OriginalPaths, OutsidePaths, false);
@@ -192,7 +192,7 @@ namespace Extenity.BuildToolbox.Editor
 			WorkingDirectory = workingDirectory ?? "";
 		}
 
-		public string Run(string arguments, out int exitCode)
+		public void Run(string arguments, out int exitCode, bool logOutput = true, bool logError = true)
 		{
 			var info = new ProcessStartInfo(ExecutablePath, arguments)
 			{
@@ -208,21 +208,35 @@ namespace Extenity.BuildToolbox.Editor
 				StartInfo = info,
 			};
 
+			if (logOutput)
+			{
+				Log.Info($"Running: {ExecutablePath} {arguments}");
+			}
+
 			process.Start();
-
-			var output = process.StandardOutput.ReadToEnd();
-
 			process.WaitForExit();
-
-			var error = process.StandardError.ReadToEnd();
-
-			Log.Info(error);
-
-			output += error;
-
 			exitCode = process.ExitCode;
 
-			return output;
+			var output = process.StandardOutput.ReadToEnd();
+			if (!string.IsNullOrEmpty(output))
+			{
+				if (logOutput)
+				{
+					Log.Info("[git] " + output);
+				}
+			}
+
+			if (exitCode != 0)
+			{
+				var error = process.StandardError.ReadToEnd();
+				if (!string.IsNullOrEmpty(error))
+				{
+					if (logError)
+					{
+						Log.Error("[git] " + error);
+					}
+				}
+			}
 		}
 	}
 
@@ -274,22 +288,21 @@ namespace Extenity.BuildToolbox.Editor
 
 			// Clear unwanted files
 			{
-				var deletedFiles = New.List<FileInfo>(); // TODO C#8: Use using
-				var failedFiles = New.List<FileInfo>();
+				using var _1 = New.List<FileInfo>(out var deletedFiles);
+				using var _2 = New.List<FileInfo>(out var failedFiles);
 
 				// Clear debug symbols folder
 				if (deleteDebugSymbolsFolder)
 				{
 					Thread.Sleep(2000); // Just wait for couple of seconds to hopefully prevent "IOException: Sharing violation on path ..." error.
 
-					var directoryToBeDeleted = executableNameWithoutExtension + "_BackUpThisFolder_ButDontShipItWithYourGame";
-					var path = Path.Combine(outputDirectory, directoryToBeDeleted);
-					DirectoryTools.Delete(path);
+					DirectoryTools.DeleteWithContent(Path.Combine(outputDirectory, "_BackUpThisFolder_ButDontShipItWithYourGame"));
+					DirectoryTools.DeleteWithContent(Path.Combine(outputDirectory, "_BurstDebugInformation_DoNotShip"));
 				}
 				// Clear DLL artifacts
 				if (deleteDLLArtifacts)
 				{
-					DirectoryTools.ClearDLLArtifacts(outputDirectory, SearchOption.AllDirectories, ref deletedFiles, ref failedFiles);
+					DirectoryTools.ClearDLLArtifacts(outputDirectory, SearchOption.AllDirectories, deletedFiles, failedFiles);
 				}
 				// Clear crash handler executable
 				if (deleteCrashHandlerExecutable)
@@ -388,12 +401,12 @@ namespace Extenity.BuildToolbox.Editor
 			}
 		}
 
-		delegate string GitOperation(out int exitCode);
-        public static void StashAllLocalGitChanges(string path = null, string stashName = null, bool includeSubmodules = true)
+		private delegate void GitOperation(out int exitCode);
+
+        public static void StashAllLocalGitChanges(string path = null, bool includeSubmodules = true)
         {
             var commandRunner = new GitCommandRunner(path);
-            
-            var commands = New.List<GitOperation>();
+            using var _ = New.List<GitOperation>(out var commands);
             
             if (includeSubmodules)
             {
@@ -408,31 +421,24 @@ namespace Extenity.BuildToolbox.Editor
             {
                 foreach (var gitOperation in commands)
                 {
-                    var output = gitOperation.Invoke(out var exitCode);
+                    gitOperation.Invoke(out var exitCode);
 
                     if (exitCode != 0)
                     {
-                        throw new Exception("Could not stash changes of Git repository. Exit code is " + exitCode + ". Output: '" + output + "'");
+                        throw new Exception("Could not stash changes of Git repository. Exit code is " + exitCode);
                     }
-
-                    Log.Info(output);
                 }
             }
             catch (Exception exception)
             {
                 throw new Exception("Could not stash changes of Git repository.", exception);
             }
-            finally
-            {
-                Release.List(ref commands);
-            }
         }
 
         public static void ApplyLastGitStash(string repoPath = null, bool includeSubmodules = true)
         {
             var commandRunner = new GitCommandRunner(repoPath);
-            
-            var commands = New.List<GitOperation>();
+            using var _ = New.List<GitOperation>(out var commands);
 
             if (includeSubmodules)
             {
@@ -445,22 +451,17 @@ namespace Extenity.BuildToolbox.Editor
             {
                 foreach (var gitOperation in commands)
                 {
-                    var output = gitOperation.Invoke(out var exitCode);
+                    gitOperation.Invoke(out var exitCode);
 
                     if (exitCode != 0)
                     {
-                        throw new Exception("Could not apply stash of Git repository. Exit code is " + exitCode + ". Output: '" + output + "'");
+                        throw new Exception("Could not apply stash of Git repository. Exit code is " + exitCode);
                     }
-                    Log.Info(output);
                 }
             }
             catch (Exception exception)
             {
                 throw new Exception("Could apply stash of Git repository.", exception);
-            }
-            finally
-            {
-                Release.List(ref commands);
             }
         }
 

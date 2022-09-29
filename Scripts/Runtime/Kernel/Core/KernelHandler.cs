@@ -1,4 +1,6 @@
-﻿using System.Runtime.CompilerServices;
+﻿#if ExtenityKernel
+
+using System.Runtime.CompilerServices;
 using Newtonsoft.Json;
 using Sirenix.OdinInspector;
 using UnityEngine;
@@ -59,3 +61,5 @@ namespace Extenity.KernelToolbox
 	}
 
 }
+
+#endif

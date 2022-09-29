@@ -4,6 +4,7 @@ using UnityEngine;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using Extenity.FileSystemToolbox;
 using Extenity.ProfilingToolbox;
 using Extenity.UnityEditorToolbox;
 using UnityEditor;
@@ -150,7 +151,7 @@ namespace Extenity.ApplicationToolbox.Editor
 			{
 				try
 				{
-					File.Delete(file);
+					FileTools.Delete(file);
 				}
 				catch
 				{
@@ -166,7 +167,7 @@ namespace Extenity.ApplicationToolbox.Editor
 
 		#region Compilation Check
 
-		public static void EnsureNotCompiling(bool breaking = true)
+		public static void EnsureNotCompiling(bool breaking, string message = "There is an ongoing compilation, which was not expected.")
 		{
 			if (EditorApplication.isCompiling)
 			{
@@ -194,7 +195,6 @@ namespace Extenity.ApplicationToolbox.Editor
 				// Just check once more. Maybe Unity has not yet realized the compilation was finished.
 				if (EditorApplication.isCompiling)
 				{
-					var message = "There is an ongoing compilation, which was not expected.";
 					if (breaking)
 					{
 						throw new Exception(message);

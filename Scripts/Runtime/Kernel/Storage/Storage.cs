@@ -1,4 +1,6 @@
-﻿using System;
+﻿#if ExtenityKernel
+
+using System;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -229,3 +231,5 @@ namespace Extenity.KernelToolbox
 	}
 
 }
+
+#endif

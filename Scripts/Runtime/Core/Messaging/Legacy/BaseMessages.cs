@@ -1,4 +1,4 @@
-﻿#if UseLegacyMessenger
+﻿#if ExtenityMessenger && UseLegacyMessenger
 
 namespace Extenity.MessagingToolbox
 {

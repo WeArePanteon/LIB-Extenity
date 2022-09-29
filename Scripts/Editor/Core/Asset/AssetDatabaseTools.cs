@@ -499,12 +499,12 @@ namespace Extenity.AssetToolbox.Editor
 
 			if (Directory.Exists(path))
 			{
-				Directory.Delete(path, true);
+				DirectoryTools.DeleteWithContent(path);
 				ManuallyDeleteMetaFileOfAsset(path);
 			}
 			else if (File.Exists(path))
 			{
-				FileTools.DeleteFileEvenIfReadOnly(path);
+				FileTools.Delete(path, false);
 				ManuallyDeleteMetaFileOfAsset(path);
 			}
 			else
@@ -519,8 +519,7 @@ namespace Extenity.AssetToolbox.Editor
 		public static void ManuallyDeleteMetaFileOfAsset(string path)
 		{
 			var metaFile = path + ".meta";
-			if (File.Exists(metaFile))
-				FileTools.DeleteFileEvenIfReadOnly(metaFile);
+			FileTools.Delete(metaFile, true);
 		}
 
 		#endregion

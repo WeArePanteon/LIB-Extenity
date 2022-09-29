@@ -1,3 +1,5 @@
+#if ExtenityScreenManagement
+
 using Extenity.UnityEditorToolbox;
 using UnityEditor;
 
@@ -18,3 +20,5 @@ namespace Extenity.UIToolbox.Editor
 	}
 
 }
+
+#endif

@@ -12,6 +12,7 @@ using Extenity.ParallelToolbox.Editor;
 using Extenity.SceneManagementToolbox.Editor;
 using Extenity.UnityEditorToolbox.Editor;
 using UnityEditor;
+using UnityEditor.Compilation;
 using Debug = UnityEngine.Debug;
 
 namespace Extenity.BuildMachine.Editor
@@ -167,7 +168,7 @@ namespace Extenity.BuildMachine.Editor
 			// The assets should be saved and refreshed at the very beginning of compilation
 			// or continuing the compilation after assembly reload.
 			{
-				var haltExecution = CheckBeforeStartingOrContinuing();
+				CheckBeforeStartingOrContinuing(Job, out bool haltExecution);
 				if (haltExecution)
 					yield break;
 			}
@@ -184,7 +185,7 @@ namespace Extenity.BuildMachine.Editor
 			{
 				// Check before running the Step
 				{
-					var haltExecution = CheckBeforeStep();
+					CheckBeforeStep(out bool haltExecution);
 					if (haltExecution)
 						yield break;
 					Job.StepState = BuildJobStepState.StepRunning;
@@ -194,8 +195,14 @@ namespace Extenity.BuildMachine.Editor
 				// Run the Step
 				{
 					Job.ErrorReceivedInLastStep = "";
-					// TODO: See 11422351
-					//Application.logMessageReceivedThreaded += 
+
+					// We already catch exceptions and fail the build. We may also catch error logs.
+					// But then, there will be some errors that Unity would write out of nowhere and
+					// failing the build for these logs which we don't have any control over, 
+					// would be a bit harsh. So any code that wants to fail the build should throw
+					// an exception, instead of logging an error.
+					// Application.logMessageReceivedThreaded += 
+
 					yield return EditorCoroutineUtility.StartCoroutineOwnerless(RunStep(), CatchRunStepException);
 					if (!string.IsNullOrEmpty(Job.ErrorReceivedInLastStep))
 					{
@@ -234,7 +241,7 @@ namespace Extenity.BuildMachine.Editor
 
 				// Check after running the Step
 				{
-					var haltExecution = CheckAfterStep();
+					CheckAfterStep(out bool haltExecution);
 					if (haltExecution)
 						yield break;
 				}
@@ -384,23 +391,6 @@ namespace Extenity.BuildMachine.Editor
 			var currentBuilder = Job.Builders[Job.CurrentBuilder];
 			Debug.Assert(currentBuilder != null);
 
-			// Change Unity's active platform if required.
-			{
-				var buildTarget = currentBuilder.Info.BuildTarget;
-				var buildTargetGroup = currentBuilder.Info.BuildTargetGroup;
-				if (EditorUserBuildSettings.activeBuildTarget != buildTarget)
-				{
-					BuilderLog.Info($"Changing active build platform from '{EditorUserBuildSettings.activeBuildTarget}' to '{buildTarget}' of group '{buildTargetGroup}'.");
-					EditorUserBuildSettings.SwitchActiveBuildTarget(buildTargetGroup, buildTarget);
-
-					var haltExecution = CheckAfterChangingActivePlatform();
-					if (haltExecution)
-						yield break;
-
-					// TODO: There we might need an assembly reload, or a Unity restart.
-				}
-			}
-
 			// Run the Step
 			yield return null; // As a precaution, won't hurt to wait for one frame for all things to settle down.
 			{
@@ -527,6 +517,36 @@ namespace Extenity.BuildMachine.Editor
 
 		#region Exception Handling
 
+		private static void ThrowScriptCompilationDetectedBeforeStartingTheBuildRun()
+		{
+			throw new Exception(BuilderLog.Prefix + "Compilation is not allowed at the start of a build run or when continuing the build run.");
+		}
+
+		private static void ThrowScriptCompilationDetectedBeforeProcessingBuildStep()
+		{
+			throw new Exception(BuilderLog.Prefix + "Compilation is not allowed before starting the build step.");
+		}
+
+		private static void ThrowScriptCompilationDetectedWhileProcessingBuildStep()
+		{
+			// This message is expected to be shown to the coder that tries to write a Build Step but accidentally
+			// triggers recompilation. So the description is a bit more detailed than other exceptions, where other
+			// exceptions are more like internal errors in Build Machine.
+			throw new Exception(BuilderLog.Prefix + 
+			                    "Triggering a script compilation is not allowed while processing the build step. " +
+			                    $"Current state is {RunningJob.ToStringCurrentPhaseBuilderAndStep()}. " +
+			                    "Make sure the codes in the step won't trigger a compilation like calling " +
+			                    "AssetDatabase.Refresh() or switching the active platform. " +
+			                    "Any changes that requires a compilation like script modifications, " +
+			                    "project settings modifications etc. will be automatically handled by " +
+			                    $"{nameof(BuildMachine)} when proceeding to next build step.");
+		}
+
+		private static void ThrowScriptCompilationDetectedAfterProcessingBuildStep()
+		{
+			throw new Exception(BuilderLog.Prefix + "Compilation is not allowed after finishing the build step.");
+		}
+
 		private static bool CatchRunException(Exception exception)
 		{
 			BuilderLog.Error("Exception caught in Build Run. Exception: " + exception);
@@ -594,17 +614,18 @@ namespace Extenity.BuildMachine.Editor
 
 		#region Check Before/After Step
 
-		private static bool CheckBeforeStartingOrContinuing()
+		private static void CheckBeforeStartingOrContinuing(BuildJob Job, out bool haltExecution)
 		{
-			var haltExecution = false;
-
 			// At this point, there should be no ongoing compilations. Build system
-			// would not be happy if there is a compilation while it starts the process.
-			// Otherwise execution gets really messy.
+			// would not be happy if there is a compilation while it processes the step.
+			// Otherwise execution gets really messy. See 11685123.
 			if (EditorApplication.isCompiling)
 			{
-				throw new Exception(BuilderLog.Prefix + "Compilation is not allowed at the start of a build run or when continuing the build run.");
+				ThrowScriptCompilationDetectedBeforeStartingTheBuildRun();
 			}
+
+			Debug.Assert(Job.Builders.IsInRange(Job.CurrentBuilder));
+			var currentBuilder = Job.Builders[Job.CurrentBuilder];
 
 			// Save the unsaved assets before making any moves.
 			AssetDatabase.SaveAssets();
@@ -622,42 +643,81 @@ namespace Extenity.BuildMachine.Editor
 					haltExecution = true;
 					HaltStep($"Start/continue - Compiling: {isCompiling} Scheduled: {RunningJob.IsAssemblyReloadScheduled}");
 					SaveRunningJobToFile();
+					return;
 				}
 			}
 
-			return haltExecution;
-		}
-
-		private static bool CheckAfterChangingActivePlatform()
-		{
-			var haltExecution = false;
-
-			// Check if changing the platform triggered a compilation, which obviously
-			// is expected.
+			// Set Unity to manually refresh assets.
 			{
-				var isCompiling = EditorApplication.isCompiling;
-				if (isCompiling || RunningJob.IsAssemblyReloadScheduled)
+				if (EditorPreferencesTools.IsAutoRefreshEnabled)
+				{
+					throw new Exception("Detected that Unity's Auto Refresh option is enabled. Please disable it to prevent Unity from starting asset refresh operation in the middle of build steps. See 'Edit>Preferences>Asset Pipeline>Auto Refresh'.");
+				}
+			}
+
+			// Change Unity's active platform if required.
+			{
+#if !DisableExtenityBuilderActivePlatformFixer
+				var buildTarget = currentBuilder.Info.BuildTarget;
+				var buildTargetGroup = currentBuilder.Info.BuildTargetGroup;
+				if (EditorUserBuildSettings.activeBuildTarget != buildTarget)
 				{
 					haltExecution = true;
-					HaltStep($"Platform change - Compiling: {isCompiling} Scheduled: {RunningJob.IsAssemblyReloadScheduled}");
-					SaveRunningJobToFile();
+					BuilderLog.Info($"Changing active build platform from '{EditorUserBuildSettings.activeBuildTarget}' to '{buildTarget}' of group '{buildTargetGroup}'.");
+					EditorUserBuildSettings.SwitchActiveBuildTarget(buildTargetGroup, buildTarget);
+
+					// Check if the changes triggered a compilation, which obviously is expected.
+					if (EditorApplication.isCompiling)
+					{
+						HaltStep("Platform change");
+						SaveRunningJobToFile();
+						return;
+					}
+					else
+					{
+						// Think about calling AssetDatabase.Refresh(force) if you encounter this exception.
+						throw new Exception("Changing platform did not trigger a recompilation.");
+					}
 				}
+#endif
 			}
 
-			return haltExecution;
+			// Change script compilation code optimization mode to Release.
+			{
+#if !DisableExtenityBuilderCodeOptimizationFixer
+				if (CompilationPipeline.codeOptimization != CodeOptimization.Release)
+				{
+					haltExecution = true;
+					BuilderLog.Info($"Changing code optimization mode from '{CompilationPipeline.codeOptimization}' to '{CodeOptimization.Release}'.");
+					CompilationPipeline.codeOptimization = CodeOptimization.Release;
+
+					// Check if the changes triggered a compilation, which obviously is expected.
+					if (EditorApplication.isCompiling)
+					{
+						HaltStep("Code optimization mode change");
+						SaveRunningJobToFile();
+						return;
+					}
+					else
+					{
+						// Think about calling AssetDatabase.Refresh(force) if you encounter this exception.
+						throw new Exception("Changing code optimization mode did not trigger a recompilation.");
+					}
+				}
+#endif
+			}
+
+			haltExecution = false;
 		}
 
-		private static bool CheckBeforeStep()
+		private static void CheckBeforeStep(out bool haltExecution)
 		{
-			var haltExecution = false;
-
-			// At this point, there should be no ongoing compilations.
-			// Build system does not allow any code that triggers
-			// an assembly reload in Build Step. Otherwise execution
-			// gets really messy.
+			// At this point, there should be no ongoing compilations. Build system
+			// would not be happy if there is a compilation while it processes the step.
+			// Otherwise execution gets really messy. See 11685123.
 			if (EditorApplication.isCompiling)
 			{
-				throw new Exception(BuilderLog.Prefix + "Compilation is not allowed before starting the step.");
+				ThrowScriptCompilationDetectedBeforeProcessingBuildStep();
 			}
 
 			// Save the unsaved assets before making any moves.
@@ -676,15 +736,34 @@ namespace Extenity.BuildMachine.Editor
 					haltExecution = true;
 					HaltStep($"Before step - Compiling: {isCompiling} Scheduled: {RunningJob.IsAssemblyReloadScheduled}");
 					SaveRunningJobToFile();
+					return;
+				}
+				else
+				{
+					CompilationPipeline.compilationStarted -= OnCompilationStartedInTheMiddleOfProcessingBuildStep;
+					CompilationPipeline.compilationStarted += OnCompilationStartedInTheMiddleOfProcessingBuildStep;
 				}
 			}
 
-			return haltExecution;
+			haltExecution = false;
 		}
 
-		private static bool CheckAfterStep()
+		private static void OnCompilationStartedInTheMiddleOfProcessingBuildStep(object _)
 		{
-			var haltExecution = false;
+			ThrowScriptCompilationDetectedWhileProcessingBuildStep();
+		}
+
+		private static void CheckAfterStep(out bool haltExecution)
+		{
+			CompilationPipeline.compilationStarted -= OnCompilationStartedInTheMiddleOfProcessingBuildStep;
+
+			// At this point, there should be no ongoing compilations. Build system
+			// would not be happy if there is a compilation while it processes the step.
+			// Otherwise execution gets really messy. See 11685123.
+			if (EditorApplication.isCompiling)
+			{
+				ThrowScriptCompilationDetectedAfterProcessingBuildStep();
+			}
 
 			// Save the unsaved assets before making any moves.
 			AssetDatabase.SaveAssets();
@@ -702,10 +781,11 @@ namespace Extenity.BuildMachine.Editor
 					haltExecution = true;
 					HaltStep($"After step - Compiling: {isCompiling} Scheduled: {RunningJob.IsAssemblyReloadScheduled}");
 					SaveRunningJobToFile();
+					return;
 				}
 			}
 
-			return haltExecution;
+			haltExecution = false;
 		}
 
 		#endregion
@@ -836,11 +916,9 @@ namespace Extenity.BuildMachine.Editor
 
 		private static void DeleteRunningJobFile()
 		{
-			AssetDatabase.ReleaseCachedFileHandles(); // Make Unity release the files to prevent any IO errors.
-
 			try
 			{
-				File.Delete(BuildMachineConstants.RunningJobSurvivalFilePath);
+				FileTools.Delete(BuildMachineConstants.RunningJobSurvivalFilePath);
 			}
 			catch (DirectoryNotFoundException)
 			{

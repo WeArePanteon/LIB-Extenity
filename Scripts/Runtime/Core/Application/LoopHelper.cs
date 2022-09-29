@@ -28,13 +28,13 @@ namespace Extenity
 		private void FixedUpdate()
 		{
 			FixedUpdateCount++;
-			Loop.Time = UnityEngine.Time.time;
-			Loop.DeltaTime = UnityEngine.Time.deltaTime;
-			Loop.UnscaledTime = UnityEngine.Time.unscaledTime;
+#if !DisableExtenityTimeCaching
+			Loop.SetCachedTimesFromUnityTimes();
+#endif
 
 			// FastInvokes are called before any other callbacks. Note that Loop.FixedUpdate is executed before
 			// LoopPreExecutionOrderHelper.FixedUpdate as defined in Script Execution Order Project Settings.
-			FastInvokeHandler.Instance.CustomFixedUpdate();
+			Invoker.Handler.CustomFixedUpdate(Loop.Time);
 
 			// Instance.FixedUpdateCallbacks.ClearIfRequired();
 		}
@@ -42,9 +42,9 @@ namespace Extenity
 		private void Update()
 		{
 			UpdateCount++;
-			Loop.Time = UnityEngine.Time.time;
-			Loop.DeltaTime = UnityEngine.Time.deltaTime;
-			Loop.UnscaledTime = UnityEngine.Time.unscaledTime;
+#if !DisableExtenityTimeCaching
+			Loop.SetCachedTimesFromUnityTimes();
+#endif
 
 			if (FPSAnalyzer != null)
 			{
@@ -53,7 +53,7 @@ namespace Extenity
 
 			// FastInvokes are called before any other callbacks. Note that Loop.Update is executed before
 			// LoopPreExecutionOrderHelper.Update as defined in Script Execution Order Project Settings.
-			FastInvokeHandler.Instance.CustomUpdate();
+			Invoker.Handler.CustomUpdate(Loop.UnscaledTime);
 
 			// Instance.UpdateCallbacks.ClearIfRequired();
 		}
@@ -61,9 +61,9 @@ namespace Extenity
 		private void LateUpdate()
 		{
 			LateUpdateCount++;
-			Loop.Time = UnityEngine.Time.time;
-			Loop.DeltaTime = UnityEngine.Time.deltaTime;
-			Loop.UnscaledTime = UnityEngine.Time.unscaledTime;
+#if !DisableExtenityTimeCaching
+			Loop.SetCachedTimesFromUnityTimes();
+#endif
 
 			// Instance.LateUpdateCallbacks.ClearIfRequired();
 		}
@@ -72,17 +72,17 @@ namespace Extenity
 
 		#region Callbacks
 
-		internal readonly ExtenityEvent PreFixedUpdateCallbacks = new ExtenityEvent();
-		internal readonly ExtenityEvent PreUpdateCallbacks = new ExtenityEvent();
-		internal readonly ExtenityEvent PreLateUpdateCallbacks = new ExtenityEvent();
+		public readonly ExtenityEvent PreFixedUpdateCallbacks = new ExtenityEvent();
+		public readonly ExtenityEvent PreUpdateCallbacks = new ExtenityEvent();
+		public readonly ExtenityEvent PreLateUpdateCallbacks = new ExtenityEvent();
 
-		internal readonly ExtenityEvent FixedUpdateCallbacks = new ExtenityEvent();
-		internal readonly ExtenityEvent UpdateCallbacks = new ExtenityEvent();
-		internal readonly ExtenityEvent LateUpdateCallbacks = new ExtenityEvent();
+		public readonly ExtenityEvent FixedUpdateCallbacks = new ExtenityEvent();
+		public readonly ExtenityEvent UpdateCallbacks = new ExtenityEvent();
+		public readonly ExtenityEvent LateUpdateCallbacks = new ExtenityEvent();
 
-		internal readonly ExtenityEvent PostFixedUpdateCallbacks = new ExtenityEvent();
-		internal readonly ExtenityEvent PostUpdateCallbacks = new ExtenityEvent();
-		internal readonly ExtenityEvent PostLateUpdateCallbacks = new ExtenityEvent();
+		public readonly ExtenityEvent PostFixedUpdateCallbacks = new ExtenityEvent();
+		public readonly ExtenityEvent PostUpdateCallbacks = new ExtenityEvent();
+		public readonly ExtenityEvent PostLateUpdateCallbacks = new ExtenityEvent();
 
 		#endregion
 

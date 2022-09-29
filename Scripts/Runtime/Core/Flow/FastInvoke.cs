@@ -10,28 +10,25 @@ namespace Extenity.FlowToolbox
 	{
 		#region Singleton Handler and Initialization
 
-		private static FastInvokeHandler Handler;
+		public static FastInvokeHandler Handler;
 
 		// static Invoker()
 		// {
 		// 	InitializeSystem();
 		// }
 
-		public static void InitializeSystem()
+		internal static void InitializeSystem()
 		{
-			ShutdownSystem();
+			DeinitializeSystem();
 
-			var go = new GameObject("_FastInvokeHandler");
-			GameObject.DontDestroyOnLoad(go);
-			go.hideFlags = HideFlags.NotEditable;
-			Handler = go.AddComponent<FastInvokeHandler>();
+			Handler = new FastInvokeHandler();
 		}
 
-		public static void ShutdownSystem()
+		internal static void DeinitializeSystem()
 		{
-			if (Handler)
+			if (Handler != null)
 			{
-				GameObject.DestroyImmediate(Handler.gameObject);
+				Handler.Shutdown();
 				Handler = null;
 			}
 		}
@@ -118,16 +115,16 @@ namespace Extenity.FlowToolbox
 
 		#endregion
 
-		#region Static Methods
+		#region Stats
 
 		public static bool IsFastInvokingAny()
 		{
 			return Handler.IsInvokingAny();
 		}
 
-		public static int TotalFastInvokeCount()
+		public static int TotalActiveFastInvokeCount()
 		{
-			return Handler.TotalInvokeCount();
+			return Handler.TotalActiveInvokeCount();
 		}
 
 		#endregion

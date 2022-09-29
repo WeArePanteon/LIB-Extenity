@@ -267,14 +267,6 @@ namespace Extenity.DataToolbox
 			return text.Length <= maxCharacters ? text : text.Substring(0, maxCharacters);
 		}
 
-		/// <summary>
-		/// Allows using StringComparison with Contains check, which is not supported in .NET by default.
-		/// </summary>
-		public static bool Contains(this string text, string value, StringComparison comparisonType)
-		{
-			return text.IndexOf(value, comparisonType) >= 0;
-		}
-
 		public static string SubstringBetween(this string text, string startTag, string endTag, int startIndex = 0)
 		{
 			if (text == null)
@@ -531,6 +523,83 @@ namespace Extenity.DataToolbox
 				}
 			}
 			return text;
+		}
+
+		#endregion
+
+		#region String Operations - Count and Replace Tags
+
+		/// <returns>True if succeeds, even there are no tags detected.
+		/// False if there is a missing tag character or there is a nested tag inside another tag.
+		/// TagCount will be int.MinValue when failed.</returns>
+		public static bool CountTags(this string text, char tagStartCharacter, char tagEndCharacter, out int tagCount)
+		{
+			// TODO-IMMEDIATE: Check if for every start tag, there is an end tag. And ensure there are no nested tags.
+
+			// Temp implementation.
+			var tagStartCharacterCount = text.CountCharacters(tagStartCharacter);
+			var tagEndCharacterCount = text.CountCharacters(tagEndCharacter);
+			if (tagStartCharacterCount != tagEndCharacterCount)
+			{
+				tagCount = int.MinValue;
+				return false;
+			}
+			tagCount = tagStartCharacterCount;
+			return true;
+		}
+
+		public interface IReplaceTagProcessor
+		{
+			void AppendText(ReadOnlySpan<char> partOfText);
+			void AppendTag(ReadOnlySpan<char> tag);
+		}
+
+		public enum ReplaceTagResult
+		{
+			Succeeded = 1,
+			NoTagsFound = 2,
+			EmptyInputText = 3,
+			MismatchingTagBraces = 4,
+		}
+
+		public static ReplaceTagResult ReplaceTags(this string text, char tagStartCharacter, char tagEndCharacter, IReplaceTagProcessor processor)
+		{
+			if (string.IsNullOrEmpty(text))
+			{
+				return ReplaceTagResult.EmptyInputText;
+			}
+
+			// Check for mismatching start and end tags.
+			if (!text.CountTags(tagStartCharacter, tagEndCharacter, out int tagCount))
+			{
+				return ReplaceTagResult.MismatchingTagBraces;
+			}
+
+			if (tagCount == 0)
+			{
+				processor.AppendText(text.AsSpan());
+				return ReplaceTagResult.NoTagsFound;
+			}
+
+			int indexAfterTheEndTag = 0;
+			for (int iTag = 0; iTag < tagCount; iTag++)
+			{
+				int startTagIndex = text.IndexOf(tagStartCharacter, indexAfterTheEndTag);
+				int indexAfterTheStartTag = startTagIndex + 1;
+
+				// Append the text to the left of the tag
+				processor.AppendText(text.AsSpan(indexAfterTheEndTag, startTagIndex - indexAfterTheEndTag));
+
+				var endTagIndex = text.IndexOf(tagEndCharacter, indexAfterTheStartTag);
+				indexAfterTheEndTag = endTagIndex + 1;
+
+				// Append the tag
+				processor.AppendTag(text.AsSpan(indexAfterTheStartTag, endTagIndex - indexAfterTheStartTag));
+			}
+
+			// Append the text to the right of the tag
+			processor.AppendText(text.AsSpan(indexAfterTheEndTag, text.Length - indexAfterTheEndTag));
+			return ReplaceTagResult.Succeeded;
 		}
 
 		#endregion
@@ -1885,6 +1954,13 @@ namespace Extenity.DataToolbox
 		#endregion
 
 		#region Singular/Plural
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static string ToStringWithPluralWord(this int value, string singularWord, string pluralOrZeroWord) { return ToStringWithPluralWord((long)value, singularWord, pluralOrZeroWord); }
+		public static string ToStringWithPluralWord(this long value, string singularWord, string pluralOrZeroWord)
+		{
+			return value.ToString() + " " + (value == 1 ? singularWord : pluralOrZeroWord);
+		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static string ToStringWithEnglishPluralPostfix(this int value, string postfix) { return ToStringWithEnglishPluralPostfix((long)value, postfix); }

@@ -119,13 +119,14 @@ namespace Extenity.DataToolbox
 				if (list[i] == null)
 				{
 					list.RemoveAt(i);
+					i--;
 					count++;
 				}
 			}
 			return count;
 		}
 
-		public static bool RemoveNullChecked<T>(this List<T> list, in T item)
+		public static bool RemoveNullChecked<T>(this ICollection<T> list, in T item)
 		{
 			if (item != null) // Ensure the object is still alive
 			{
@@ -142,24 +143,6 @@ namespace Extenity.DataToolbox
 			return list.RemoveNullChecked(item);
 		}
 
-		// See if the list does not contain any items other than specified items.
-		public static bool DoesNotContainOtherThan<T>(this List<T> list, params T[] items)
-		{
-			if (list == null)
-				return true;
-			if (items == null)
-				throw new ArgumentNullException(nameof(items));
-
-			for (int i = 0; i < list.Count; i++)
-			{
-				if (!items.Contains(list[i]))
-				{
-					return false;
-				}
-			}
-			return true;
-		}
-
 		public static List<T> Clone<T>(this List<T> source)
 		{
 			return source.GetRange(0, source.Count);
@@ -173,21 +156,7 @@ namespace Extenity.DataToolbox
 			return result;
 		}
 
-		public static void Combine<T>(this ICollection<T> list, in IEnumerable<T> otherList)
-		{
-			if (otherList == null)
-				throw new ArgumentNullException(nameof(otherList));
-
-			foreach (T otherListItem in otherList)
-			{
-				if (!list.Contains(otherListItem))
-				{
-					list.Add(otherListItem);
-				}
-			}
-		}
-
-		public static void CopyTo<T>(this List<T> list, List<T> target)
+		public static void CopyTo<T>(this IList<T> list, IList<T> target)
 		{
 			for (int i = 0; i < list.Count; i++)
 			{
@@ -195,7 +164,7 @@ namespace Extenity.DataToolbox
 			}
 		}
 
-		public static void CopyToUnique<T>(this List<T> list, List<T> target)
+		public static void CopyToUnique<T>(this IList<T> list, IList<T> target)
 		{
 			for (int i = 0; i < list.Count; i++)
 			{
@@ -206,7 +175,7 @@ namespace Extenity.DataToolbox
 			}
 		}
 
-		public static void AddNullChecked<T>(this List<T> list, in T item)
+		public static void AddNullChecked<T>(this IList<T> list, in T item)
 		{
 			if (item != null)
 			{
@@ -214,7 +183,7 @@ namespace Extenity.DataToolbox
 			}
 		}
 
-		public static bool AddUnique<T>(this List<T> list, in T item)
+		public static bool AddUnique<T>(this IList<T> list, in T item)
 		{
 			if (!list.Contains(item))
 			{
@@ -224,7 +193,7 @@ namespace Extenity.DataToolbox
 			return false;
 		}
 
-		public static bool AddUniqueNullChecked<T>(this List<T> list, in T item)
+		public static bool AddUniqueNullChecked<T>(this IList<T> list, in T item)
 		{
 			if (item != null) // Ensure the object is still alive
 			{
@@ -237,7 +206,7 @@ namespace Extenity.DataToolbox
 			return false;
 		}
 
-		public static bool AddUniqueNullCheckedAndRemoveNulls<T>(this List<T> list, in T item)
+		public static bool AddUniqueNullCheckedAndRemoveNulls<T>(this IList<T> list, in T item)
 		{
 			// Remove nulls before adding the object, so Contains check will not count the nulls.
 			list.RemoveAllNullItems();
@@ -245,7 +214,7 @@ namespace Extenity.DataToolbox
 			return list.AddUniqueNullChecked(item);
 		}
 
-		public static void AddNullCheckedAndRemoveNulls<T>(this List<T> list, in T item)
+		public static void AddNullCheckedAndRemoveNulls<T>(this IList<T> list, in T item)
 		{
 			// Remove nulls before adding the object, so Contains check will not count the nulls.
 			list.RemoveAllNullItems();
@@ -286,7 +255,7 @@ namespace Extenity.DataToolbox
 			list.RemoveRange(list.Count - count, count);
 		}
 
-		public static T Dequeue<T>(this List<T> list)
+		public static T Dequeue<T>(this IList<T> list)
 		{
 			if (list == null || list.Count == 0)
 				return default(T);
@@ -297,23 +266,13 @@ namespace Extenity.DataToolbox
 			return item;
 		}
 
-		public static void AddCapacity<T>(ref List<T> list, int additionalCapacity)
-		{
-			if (list == null)
-			{
-				list = new List<T>(additionalCapacity);
-			}
-			else
-			{
-				list.Capacity += additionalCapacity;
-			}
-		}
-
 		public static void MakeSameSizeAs<T1, T2>(ref T1[] list, in T2[] otherList)
 		{
 			if (list == null)
 			{
-				list = new T1[otherList != null ? otherList.Length : 0];
+				list = otherList == null || otherList.Length == 0
+					? Array.Empty<T1>()
+					: new T1[otherList.Length];
 			}
 			else if (otherList == null)
 			{
@@ -335,10 +294,12 @@ namespace Extenity.DataToolbox
 
 			if (list == null)
 			{
-				list = new T[length];
+				list = length == 0
+					? Array.Empty<T>()
+					: new T[length];
 				return true;
 			}
-			else if (list.Length != length)
+			if (list.Length != length)
 			{
 				Array.Resize(ref list, length);
 				return true;
@@ -353,7 +314,9 @@ namespace Extenity.DataToolbox
 
 			if (list == null)
 			{
-				list = new T[length];
+				list = length == 0
+					? Array.Empty<T>()
+					: new T[length];
 				if (processItemToBeAdded != null)
 				{
 					// Array needs to be expanded. Call the callback for added items.
@@ -364,7 +327,7 @@ namespace Extenity.DataToolbox
 				}
 				return true;
 			}
-			else if (list.Length != length)
+			if (list.Length != length)
 			{
 				var currentLength = list.Length;
 				if (currentLength > length && processItemToBeRemoved != null)
@@ -396,10 +359,12 @@ namespace Extenity.DataToolbox
 
 			if (list == null)
 			{
-				list = new T[length];
+				list = length == 0
+					? Array.Empty<T>()
+					: new T[length];
 				return true;
 			}
-			else if (list.Length < length)
+			if (list.Length < length)
 			{
 				int expandedSize;
 				if (expandToDoubleSize)
@@ -486,73 +451,46 @@ namespace Extenity.DataToolbox
 			return -1;
 		}
 
-		public static T[] Remove<T>(this T[] source, in T[] removedArray)
-		{
-			var array = source;
-			foreach (var removedItem in removedArray)
-			{
-				int index;
-				while ((index = array.IndexOf(removedItem)) >= 0)
-				{
-					array = array.RemoveAt(index);
-				}
-			}
-			return array;
-		}
-
-		public static T[] Remove<T>(this T[] source, in T value)
+		public static bool Remove<T>(this T[] source, in T value, out T[] result)
 		{
 			var index = source.IndexOf(value);
 			if (index < 0)
-				return source;
-			return source.RemoveAt(index);
+			{
+				result = source;
+				return false;
+			}
+			else
+			{
+				source.RemoveAt(index, out result);
+				return true;
+			}
 		}
 
-		public static T[] RemoveAt<T>(this T[] source, int index)
+		public static void RemoveAt<T>(this T[] source, int index, out T[] result)
 		{
 			if (index < 0 || index >= source.Length)
 			{
 				throw new ArgumentOutOfRangeException(nameof(index), index, "Index is out of range.");
 			}
 
-			var result = new T[source.Length - 1];
+			result = new T[source.Length - 1];
 			if (index > 0)
 				Array.Copy(source, 0, result, 0, index);
 			if (index < source.Length - 1)
 				Array.Copy(source, index + 1, result, index, source.Length - index - 1);
-			return result;
 		}
 
-		public static T[] Insert<T>(this T[] source, int index)
+		public static void Insert<T>(this T[] source, int index, in T obj, out T[] result)
 		{
 			if (index < 0 || index > source.Length)
 				throw new ArgumentOutOfRangeException(nameof(index), index, "Index is out of range.");
 
-			var result = new T[source.Length + 1];
-
-			if (source.Length == 0)
-				return result;
-
-			// Copy left part
-			if (index > 0)
-				Array.Copy(source, 0, result, 0, index);
-			// Copy right part
-			Array.Copy(source, index, result, index + 1, source.Length - index);
-
-			return result;
-		}
-
-		public static T[] Insert<T>(this T[] source, int index, in T obj)
-		{
-			if (index < 0 || index > source.Length)
-				throw new ArgumentOutOfRangeException(nameof(index), index, "Index is out of range.");
-
-			var result = new T[source.Length + 1];
+			result = new T[source.Length + 1];
 
 			if (source.Length == 0)
 			{
 				result[0] = obj;
-				return result;
+				return;
 			}
 
 			// Copy left part
@@ -562,7 +500,6 @@ namespace Extenity.DataToolbox
 			Array.Copy(source, index, result, index + 1, source.Length - index);
 
 			result[index] = obj;
-			return result;
 		}
 
 		public static T[] Swap<T>(this T[] source, int index1, int index2)
@@ -573,20 +510,20 @@ namespace Extenity.DataToolbox
 			return source;
 		}
 
-		public static T[] Add<T>(this T[] source, in T item)
+		public static void Add<T>(this T[] source, in T item, out T[] result)
 		{
 			var sourceLength = source != null ? source.Length : 0;
-			Array.Resize(ref source, sourceLength + 1);
-			source[sourceLength] = item;
-			return source;
+			result = source;
+			Array.Resize(ref result, sourceLength + 1);
+			result[sourceLength] = item;
 		}
 
-		public static T[] AddRange<T>(this T[] source, in T[] items)
+		public static void AddRange<T>(this T[] source, in T[] items, out T[] result)
 		{
 			var sourceLength = source != null ? source.Length : 0;
-			Array.Resize(ref source, sourceLength + items.Length);
-			Array.Copy(items, 0, source, sourceLength, items.Length);
-			return source;
+			result = source;
+			Array.Resize(ref result, sourceLength + items.Length);
+			Array.Copy(items, 0, result, sourceLength, items.Length);
 		}
 
 		/// <summary>
@@ -595,7 +532,7 @@ namespace Extenity.DataToolbox
 		/// 
 		/// Source: https://stackoverflow.com/questions/450233/generic-list-moving-an-item-within-the-list
 		/// </summary>
-		public static void Move<T>(this List<T> list, int oldIndex, int newIndex)
+		public static void Move<T>(this IList<T> list, int oldIndex, int newIndex)
 		{
 			if (list == null)
 				throw new ArgumentNullException();
@@ -1471,19 +1408,19 @@ namespace Extenity.DataToolbox
 			list.Add(value);
 		}
 
-		public static int AddOrIncrement<TKey>(this IDictionary<TKey, int> dictionary, in TKey key, int initialValue = 1)
+		public static int AddOrIncrease<TKey>(this IDictionary<TKey, int> dictionary, in TKey key, int increment = 1, int initialValue = 1)
 		{
-			if (dictionary.TryGetValue(key, out var ret))
+			if (dictionary.TryGetValue(key, out var value))
 			{
-				ret++;
-				dictionary[key] = ret;
+				value += increment;
+				dictionary[key] = value;
 			}
 			else
 			{
-				ret = initialValue;
-				dictionary.Add(key, ret);
+				value = initialValue;
+				dictionary.Add(key, value);
 			}
-			return ret;
+			return value;
 		}
 
 		#endregion

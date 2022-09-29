@@ -1,4 +1,4 @@
-#if !UseLegacyMessenger
+#if ExtenityMessenger && !UseLegacyMessenger
 
 using Extenity.MessagingToolbox;
 using Extenity.Testing;

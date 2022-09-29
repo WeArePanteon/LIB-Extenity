@@ -1,4 +1,6 @@
-﻿using System;
+﻿#if ExtenityKernel
+
+using System;
 using System.Text;
 using Extenity.KernelToolbox;
 using NUnit.Framework;
@@ -129,3 +131,5 @@ namespace ExtenityTests.KernelToolbox
 	}
 
 }
+
+#endif

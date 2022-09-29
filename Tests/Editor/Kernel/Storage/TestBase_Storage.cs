@@ -1,6 +1,9 @@
-﻿using System.IO;
+﻿#if ExtenityKernel
+
+using System.IO;
 using System.Text;
 using Extenity.ApplicationToolbox;
+using Extenity.FileSystemToolbox;
 using Extenity.KernelToolbox;
 using UnityEngine;
 
@@ -24,7 +27,7 @@ namespace ExtenityTests.KernelToolbox
 			// Clear the previously created repository.
 			try
 			{
-				Directory.Delete(path, true);
+				DirectoryTools.DeleteWithContent(path);
 				Directory.CreateDirectory(path);
 			}
 			catch
@@ -93,10 +96,12 @@ namespace ExtenityTests.KernelToolbox
 		protected void DeleteDataFile(string fileName)
 		{
 			var path = Path.Combine(Storage.StoragePath, fileName);
-			File.Delete(path);
+			FileTools.Delete(path);
 		}
 
 		#endregion
 	}
 
 }
+
+#endif

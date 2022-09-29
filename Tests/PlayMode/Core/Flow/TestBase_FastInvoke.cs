@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using Extenity;
 using Extenity.FlowToolbox;
+using Extenity.ParallelToolbox;
 using Extenity.Testing;
 using Extenity.UnityTestToolbox;
 using NUnit.Framework;
@@ -113,17 +114,17 @@ namespace ExtenityTests.FlowToolbox
 				DeinitializeBase();
 			}
 
-			FastInvokeHandler.VerboseLoggingForNegativeTimes = false;
+			FastInvokeHandler.LogWarningForNegativeInvokeTimes = false;
 
 			if (startAtRandomTime)
 			{
 				// This will make tests start at a random Time.time.
-				yield return new WaitForEndOfFrame(); // Ignored by Code Correct
+				yield return Yields.WaitForEndOfFrame;
 			}
 			else
 			{
 				// This will make tests start right in FixedUpdates where Time.time is consistent.
-				yield return new WaitForFixedUpdate(); // Ignored by Code Correct
+				yield return Yields.WaitForFixedUpdate;
 			}
 
 			InitializeBase();
@@ -135,7 +136,6 @@ namespace ExtenityTests.FlowToolbox
 				throw new Exception("Test was already initialized.");
 			IsInitialized = true;
 
-			Invoker.InitializeSystem();
 			UnityTestTools.Cleanup();
 			Time.timeScale = TimeScale;
 
@@ -151,7 +151,6 @@ namespace ExtenityTests.FlowToolbox
 			IsInitialized = false;
 
 			Loop.DeinitializeSystem();
-			Invoker.ShutdownSystem();
 			Time.timeScale = 1f;
 		}
 
@@ -352,7 +351,7 @@ namespace ExtenityTests.FlowToolbox
 			while (getCallbackCallCount() == 0)
 			{
 				doInvokingChecks(true, 1);
-				yield return new WaitForFixedUpdate();
+				yield return Yields.WaitForFixedUpdate;
 				fixedUpdateCount++;
 				passedTime += Time.deltaTime;
 			}
@@ -406,14 +405,14 @@ namespace ExtenityTests.FlowToolbox
 				}
 				else if (invokeCountShouldBe > 0)
 				{
-					Assert.AreEqual(invokeCountShouldBe, Invoker.TotalFastInvokeCount());
+					Assert.AreEqual(invokeCountShouldBe, Invoker.TotalActiveFastInvokeCount());
 					Assert.AreEqual(invokeCountShouldBe, Subject.FastInvokeCount());
 					Assert.AreEqual(invokeCountShouldBe, Subject.FastInvokeCount(Subject.Callback));
 				}
 				else if (invokeCountShouldBe == -1)
 				{
 					// Expecting any count.
-					Assert.Greater(Invoker.TotalFastInvokeCount(), 0);
+					Assert.Greater(Invoker.TotalActiveFastInvokeCount(), 0);
 					Assert.Greater(Subject.FastInvokeCount(), 0);
 					Assert.Greater(Subject.FastInvokeCount(Subject.Callback), 0);
 				}
@@ -447,14 +446,14 @@ namespace ExtenityTests.FlowToolbox
 				}
 				else if (invokeCountShouldBe > 0)
 				{
-					Assert.AreEqual(invokeCountShouldBe, Invoker.TotalFastInvokeCount());
+					Assert.AreEqual(invokeCountShouldBe, Invoker.TotalActiveFastInvokeCount());
 					Assert.AreEqual(invokeCountShouldBe, Subject.FastInvokeCount());
 					Assert.AreEqual(invokeCountShouldBe, Subject.FastInvokeCount(FastInvokeOutsiderCallback));
 				}
 				else if (invokeCountShouldBe == -1)
 				{
 					// Expecting any count.
-					Assert.Greater(Invoker.TotalFastInvokeCount(), 0);
+					Assert.Greater(Invoker.TotalActiveFastInvokeCount(), 0);
 					Assert.Greater(Subject.FastInvokeCount(), 0);
 					Assert.Greater(Subject.FastInvokeCount(FastInvokeOutsiderCallback), 0);
 				}

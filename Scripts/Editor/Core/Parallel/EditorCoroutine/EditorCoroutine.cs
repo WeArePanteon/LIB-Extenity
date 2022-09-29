@@ -3,6 +3,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Extenity.ReflectionToolbox;
 using UnityEditor;
 using UnityEngine;
 using Object = UnityEngine.Object;
@@ -45,11 +46,21 @@ namespace Extenity.ParallelToolbox.Editor
 				var type = yield.GetType();
 				var dataType = DataType.None;
 				double targetTime = -1;
-				if (type == typeof(EditorWaitForSeconds))
+				if (type == typeof(WaitForSeconds))
 				{
-					targetTime = EditorApplication.timeSinceStartup + (yield as EditorWaitForSeconds).WaitTime;
+					targetTime = EditorApplication.timeSinceStartup + (float)ReflectionTools.GetFieldValue(((WaitForSeconds)yield), "m_Seconds");
 					dataType = DataType.WaitForSeconds;
 				}
+				// else if (type == typeof(WaitForSecondsRealtime)) Tried to support WaitForSecondsRealtime but there was another error with it. Activate EditorCoroutineDebugging and write tests to see what's going on.
+				// {
+				// 	targetTime = EditorApplication.timeSinceStartup + ((WaitForSecondsRealtime)yield).waitTime;
+				// 	dataType = DataType.WaitForSeconds;
+				// }
+				// else if (type == typeof(EditorWaitForSeconds)) Not needed anymore. Use WaitForSeconds instead.
+				// {
+				// 	targetTime = EditorApplication.timeSinceStartup + (yield as EditorWaitForSeconds).WaitTime;
+				// 	dataType = DataType.WaitForSeconds;
+				// }
 				else if (type == typeof(EditorCoroutine))
 				{
 					dataType = DataType.EditorCoroutine;
@@ -180,50 +191,67 @@ namespace Extenity.ParallelToolbox.Editor
 		{
 			if (m_IsDone)
 				throw new Exception();
-#if EditorCoroutineDebugging
-			EditorApplication.update += MoveNextWrapper;
-#else
 			EditorApplication.update += MoveNext;
-#endif
 		}
 
 		private void DeregisterFromUpdate()
 		{
 			if (!m_IsDone)
 				throw new Exception();
-#if EditorCoroutineDebugging
-			EditorApplication.update -= MoveNextWrapper;
-#else
 			EditorApplication.update -= MoveNext;
-#endif
 		}
 
 		#endregion
 
+		#region MoveNext Calls
+
+		private static int MoveCalls = 0;
+		private static bool IsInMove;
+
 		private void MoveNext()
 		{
-			Debug.Assert(!m_IsDone);
-
-			if (m_Owner != null &&
-				(
-					!m_Owner.IsAlive ||
-					(m_Owner.Target is Object targetAsUnityObject && targetAsUnityObject == null)
-				)
-			)
+			if (m_IsDone)
 			{
-				LogVerbose("Owner E");
-				m_IsDone = true;
-				DeregisterFromUpdate();
-				return;
+				throw new Exception("Called MoveNext on a finalized coroutine.");
+			}
+			if (IsInMove)
+			{
+				throw new Exception("Recursively called MoveNext.");
 			}
 
-			bool notDone = ProcessIEnumeratorRecursive(m_Routine);
-			m_IsDone = !notDone;
-			LogStatus($"AFTER ({(m_IsDone ? "DONE" : "____")})", this);
+			MoveCalls++;
+			IsInMove = true;
 
-			if (m_IsDone)
-				DeregisterFromUpdate();
+			try
+			{
+				if (m_Owner != null &&
+				    (
+					    !m_Owner.IsAlive ||
+					    (m_Owner.Target is Object targetAsUnityObject && targetAsUnityObject == null)
+				    )
+				   )
+				{
+					LogVerbose("Finalizing coroutine because the owner was destroyed.");
+					m_IsDone = true;
+					DeregisterFromUpdate();
+					return;
+				}
+
+				bool notDone = ProcessIEnumeratorRecursive(m_Routine);
+				m_IsDone = !notDone;
+
+				if (m_IsDone)
+				{
+					DeregisterFromUpdate();
+				}
+			}
+			finally
+			{
+				IsInMove = false;
+			}
 		}
+
+		#endregion
 
 		static Stack<IEnumerator> kIEnumeratorProcessingStack = new Stack<IEnumerator>(32);
 		private bool ProcessIEnumeratorRecursive(IEnumerator enumerator)
@@ -310,6 +338,8 @@ namespace Extenity.ParallelToolbox.Editor
 				result = root.MoveNext();
 			}
 
+			LogStatus($"AFTER ({(result ? "Not finished yet" : "Finished")})", this);
+
 			return result;
 		}
 
@@ -384,41 +414,6 @@ namespace Extenity.ParallelToolbox.Editor
 
 #if EditorCoroutineDebugging
 
-		#region ID
-
-		private readonly int ID = LastGeneratedID++;
-		private static int LastGeneratedID = 1;
-
-		#endregion
-
-		#region MoveNext Calls
-
-		private static int MoveCalls = 0;
-		private static InMoveTracker InMove;
-
-		private class InMoveTracker : IDisposable
-		{
-			public bool Active;
-			public InMoveTracker() { Active = true; }
-			public void Dispose() { Active = false; }
-		}
-
-		internal void MoveNextWrapper()
-		{
-			if (InMove != null && InMove.Active)
-			{
-				throw new Exception("Recursively called MoveNext.");
-			}
-			using (InMove = new InMoveTracker())
-			{
-				MoveCalls++;
-
-				MoveNext();
-			}
-		}
-
-		#endregion
-
 		#region Reflection
 
 		private void TryLogFields()
@@ -445,8 +440,6 @@ namespace Extenity.ParallelToolbox.Editor
 
 		#region Log
 
-		public static char InMoveMark => InMove?.Active == true ? '_' : 'P';
-
 		public static void LogVerbose(string message)
 		{
 			Log.Info(message);
@@ -456,9 +449,10 @@ namespace Extenity.ParallelToolbox.Editor
 		{
 			var id = editorCoroutine?.ID.ToString() ?? "#";
 			var depth = editorCoroutine?.TryGetCurrentDepth().ToString() ?? "#";
-			var doneMark = editorCoroutine?.m_IsDone == true ? 'D' : '_';
 			var ownership = editorCoroutine?.m_ParentCoroutine != null ? "Child" : "Root";
-			Log.Info($"#\t\t ID {id}   Depth {depth}   Move {MoveCalls}   {ownership}   {InMoveMark}{doneMark} \t\t {operation} \t\t {editorCoroutine?.m_Processor.data.type}");
+			var inMoveMark = IsInMove ? "InMove" : "Paused";
+			var doneMark = editorCoroutine?.m_IsDone == true ? "Done" : "NotDoneYet";
+			Log.Info($"#\t\t ID {id}   Depth {depth}   Move {MoveCalls}   {ownership}   {inMoveMark}/{doneMark} \t\t {operation} \t\t {editorCoroutine?.m_Processor.data.type}");
 		}
 
 		public static void DumpAllEditorCoroutines()

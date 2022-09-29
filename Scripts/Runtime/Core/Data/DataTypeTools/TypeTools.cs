@@ -288,6 +288,11 @@ namespace Extenity.DataToolbox
 				   type.GetGenericTypeDefinition() == typeof(Dictionary<,>);
 		}
 
+		public static bool IsIndexer(this PropertyInfo propertyInfo)
+		{
+			return propertyInfo.GetIndexParameters().Length > 0;
+		}
+
 		public static bool IsReadOnly(this FieldInfo fieldInfo)
 		{
 			return fieldInfo.IsInitOnly;
@@ -295,7 +300,25 @@ namespace Extenity.DataToolbox
 
 		public static bool IsConst(this FieldInfo fieldInfo)
 		{
-			return fieldInfo.IsLiteral;
+			// Source: https://stackoverflow.com/questions/10261824/how-can-i-get-all-constants-of-a-type-by-reflection
+			// IsLiteral determines if its value is written at compile time and not changeable.
+			// IsInitOnly determines if the field can be set in the body of the constructor.
+			// For C# a field which is readonly keyword would have both true but a const field would have only IsLiteral equal to true.
+			return fieldInfo.IsLiteral && !fieldInfo.IsInitOnly;
+		}
+
+		public static bool IsStaticReadOnlyValueType(this FieldInfo fieldInfo)
+		{
+			return fieldInfo.IsStatic && fieldInfo.IsInitOnly && fieldInfo.FieldType.IsValueType;
+		}
+
+		/// <summary>
+		/// Tells if the value of the field is not expected to change in any way.
+		/// Note that reference types may get modified even if they are marked as static readonly.
+		/// </summary>
+		public static bool IsConstOrStaticReadOnlyValueType(this FieldInfo fieldInfo)
+		{
+			return fieldInfo.IsConst() || fieldInfo.IsStaticReadOnlyValueType();
 		}
 
 		#region Unity Serialized Fields
@@ -530,7 +553,7 @@ namespace Extenity.DataToolbox
             {
                 var baseFields = GetPublicAndPrivateInstanceFields(baseType);
                 fields = type.GetFields(bindingFlags);
-                fields = fields.AddRange(baseFields);
+                fields.AddRange(baseFields, out fields);
             }
 
 			// Add to cache
@@ -754,7 +777,7 @@ namespace Extenity.DataToolbox
 			{
 				var baseProperties = GetPublicAndPrivateInstanceProperties(baseType);
                 properties = type.GetProperties(bindingFlags);
-                properties = properties.AddRange(baseProperties);
+                properties.AddRange(baseProperties, out properties);
 			}
 
 			// Add to cache

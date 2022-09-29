@@ -88,12 +88,10 @@ namespace Extenity.DebugToolbox
 		public void TakeSnapshotOfAllLoadedScenes()
 		{
 			var sceneInfos = SceneManagerTools.GetScenes(SceneListFilter.LoadedScenesAndDontDestroyOnLoadScene);
-			Scenes = sceneInfos.Select(sceneInfo => new SceneEntry(sceneInfo)).ToArray();
-
-			// Also add the DontDestroyOnLoad scene, if we are currently in play mode. (There is no DontDestroyOnLoad scene in edit mode)
-			if (Application.isPlaying)
+			Scenes = new SceneEntry[sceneInfos.Count];
+			for (var i = 0; i < sceneInfos.Count; i++)
 			{
-				Scenes = Scenes.Add(new SceneEntry(SceneManagerTools.GetDontDestroyOnLoadScene()));
+				Scenes[i] = new SceneEntry(sceneInfos[i]);
 			}
 		}
 
