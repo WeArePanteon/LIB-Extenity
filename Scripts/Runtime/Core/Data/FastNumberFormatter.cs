@@ -1,3 +1,4 @@
+/*
 //
 // System.NumberFormatter.cs
 //
@@ -2268,3 +2269,4 @@ namespace Extenity.DataToolbox
 	}
 
 }
+*/
