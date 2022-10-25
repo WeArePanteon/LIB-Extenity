@@ -15,12 +15,12 @@ using ContextObject = System.Object;
 namespace Extenity.ProfilingToolbox
 {
 
-	public class ProfilerStopwatch
+	public struct ProfilerStopwatch
 	{
 		public double StartTime { get; private set; }
-		public bool IsStarted { get; private set; }
-
 		public double EndTime { get; private set; }
+
+		public bool IsStarted => EndTime == -1;
 
 		public double Elapsed
 		{
@@ -43,13 +43,15 @@ namespace Extenity.ProfilingToolbox
 		{
 			if (IsStarted)
 			{
-				Log.Error("Tried to start profiler stopwatch but it was already started.");
+				Extenity.Log.Error("Tried to start profiler stopwatch but it was already started.");
 				return;
 			}
-			IsStarted = true;
 
+			EndTime = -1;
+			
+			// Note that CurrentTime is called at the very end of Start,
+			// without doing any other work to allow precise measurements between Start and End.
 			StartTime = CurrentTime;
-			EndTime = 0;
 		}
 
 		/// <summary>
@@ -57,21 +59,24 @@ namespace Extenity.ProfilingToolbox
 		/// </summary>
 		public double End()
 		{
-			EndTime = CurrentTime;
+			// Note that CurrentTime is called as soon as possible in the first line of End,
+			// without doing any other work to allow precise measurements between Start and End.
+			var endTime = CurrentTime; 
 
 			if (!IsStarted)
 			{
 				StartTime = 0;
 				EndTime = 0;
-				Log.Error("Tried to end profiler stopwatch but it was not started.");
+				Extenity.Log.Error("Tried to end profiler stopwatch but it was not started.");
 				return 0;
 			}
 
+			// Note that EndTime is also used in IsStarted. So we have to set its value after the check above.
+			EndTime = endTime;
 			var elapsed = Elapsed;
 
 			TotalCalls++;
 			CumulativeTime += elapsed;
-			IsStarted = false;
 			return elapsed;
 		}
 
@@ -93,45 +98,45 @@ namespace Extenity.ProfilingToolbox
 			return elapsed;
 		}
 
-		public void EndAndLog(string profilerMessageFormat)
+		public void EndAndLog(string profilerMessageFormat, LogCategory logCategory = LogCategory.Info)
 		{
 			End();
-			LogInfo(profilerMessageFormat);
+			Log(profilerMessageFormat, logCategory);
 		}
 
-		public void EndAndLog(ContextObject context, string profilerMessageFormat)
+		public void EndAndLog(ContextObject context, string profilerMessageFormat, LogCategory logCategory = LogCategory.Info)
 		{
 			End();
-			LogInfo(context, profilerMessageFormat);
+			Log(context, profilerMessageFormat, logCategory);
 		}
 
 		#region Log
 
-		public void LogInfo(string profilerMessageFormat)
+		public void Log(string profilerMessageFormat, LogCategory logCategory = LogCategory.Info)
 		{
-			Log.Info(string.Format(profilerMessageFormat, Elapsed.ToStringMinutesSecondsMillisecondsFromSeconds()));
+			Extenity.Log.Any(string.Format(profilerMessageFormat, Elapsed.ToStringMinutesSecondsMillisecondsFromSeconds()), logCategory);
 		}
 
-		public void LogInfo(ContextObject context, string profilerMessageFormat)
+		public void Log(ContextObject context, string profilerMessageFormat, LogCategory logCategory = LogCategory.Info)
 		{
-			Log.Info(string.Format(profilerMessageFormat, Elapsed.ToStringMinutesSecondsMillisecondsFromSeconds()), context);
+			Extenity.Log.Any(string.Format(profilerMessageFormat, Elapsed.ToStringMinutesSecondsMillisecondsFromSeconds()), logCategory, context);
 		}
 
-		public void LogInfoCumulative(string profilerMessageFormat)
+		public void LogCumulative(string profilerMessageFormat, LogCategory logCategory = LogCategory.Info)
 		{
-			Log.Info(string.Format(profilerMessageFormat, CumulativeTime.ToStringMinutesSecondsMillisecondsFromSeconds()));
+			Extenity.Log.Any(string.Format(profilerMessageFormat, CumulativeTime.ToStringMinutesSecondsMillisecondsFromSeconds()), logCategory);
 		}
 
-		public void LogInfoCumulative(ContextObject context, string profilerMessageFormat)
+		public void LogCumulative(ContextObject context, string profilerMessageFormat, LogCategory logCategory = LogCategory.Info)
 		{
-			Log.Info(string.Format(profilerMessageFormat, CumulativeTime.ToStringMinutesSecondsMillisecondsFromSeconds()), context);
+			Extenity.Log.Any(string.Format(profilerMessageFormat, CumulativeTime.ToStringMinutesSecondsMillisecondsFromSeconds()), logCategory, context);
 		}
 
 		#endregion
 
 		#region Cumulative Time
 
-		public int TotalCalls;
+		public int TotalCalls { get; private set; }
 		public double CumulativeTime { get; private set; }
 
 		public void ResetCumulativeTime()
