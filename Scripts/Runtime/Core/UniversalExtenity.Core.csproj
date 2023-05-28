@@ -13,6 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\..\Shared\ZString\ZString\ZString-Server.csproj" />
     <ProjectReference Include="..\..\..\..\Unity.Mathematics\Unity.Mathematics.csproj" />
   </ItemGroup>
 
