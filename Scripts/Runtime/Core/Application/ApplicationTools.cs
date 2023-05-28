@@ -1,12 +1,8 @@
-#if UNITY
-
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using Extenity.DataToolbox;
 using Extenity.FileSystemToolbox;
-using UnityEngine;
-using UnityEngine.Rendering;
 
 namespace Extenity.ApplicationToolbox
 {
@@ -15,7 +11,9 @@ namespace Extenity.ApplicationToolbox
 	{
 		#region Deinitialization
 
+#if UNITY
 		public static bool IsShuttingDown = false;
+#endif
 
 		#endregion
 
@@ -25,22 +23,26 @@ namespace Extenity.ApplicationToolbox
 		{
 			get
 			{
-				switch (Application.platform)
+#if UNITY
+				switch (UnityEngine.Application.platform)
 				{
-					case RuntimePlatform.WindowsEditor:
+					case UnityEngine.RuntimePlatform.WindowsEditor:
 						// This does not work in threaded environment. So we use working directory instead.
 						// return Application.dataPath.AddDirectorySeparatorToEnd().RemoveLastDirectoryFromPath().AddDirectorySeparatorToEnd().FixDirectorySeparatorChars();
 						return Directory.GetCurrentDirectory().AddDirectorySeparatorToEnd().FixDirectorySeparatorChars();
 
-					case RuntimePlatform.WindowsPlayer:
+					case UnityEngine.RuntimePlatform.WindowsPlayer:
 						throw new NotImplementedException(); // TODO:
 
-					case RuntimePlatform.OSXEditor:
+					case UnityEngine.RuntimePlatform.OSXEditor:
 						return Directory.GetCurrentDirectory().AddDirectorySeparatorToEnd().FixDirectorySeparatorChars();
 
 					default:
 						throw new NotImplementedException();
 				}
+#else
+				return Directory.GetCurrentDirectory().AddDirectorySeparatorToEnd().FixDirectorySeparatorChars();
+#endif
 			}
 		}
 
@@ -48,6 +50,8 @@ namespace Extenity.ApplicationToolbox
 		{
 			get
 			{
+#if UNITY
+
 #if UNITY_ANDROID && !UNITY_EDITOR
 				using (var unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
 				using (var currentActivity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity"))
@@ -57,7 +61,11 @@ namespace Extenity.ApplicationToolbox
 					return filesDir.Call<string>("getCanonicalPath");
 				}
 #else
-				return Application.persistentDataPath;
+				return UnityEngine.Application.persistentDataPath;
+#endif
+
+#else
+				throw new NotImplementedException();
 #endif
 			}
 		}
@@ -66,6 +74,8 @@ namespace Extenity.ApplicationToolbox
 		{
 			get
 			{
+#if UNITY
+
 #if UNITY_ANDROID && !UNITY_EDITOR
 				using (var unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
 				using (var currentActivity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity"))
@@ -75,7 +85,11 @@ namespace Extenity.ApplicationToolbox
 					return cacheDir.Call<string>("getCanonicalPath");
 				}
 #else
-				return Application.temporaryCachePath;
+				return UnityEngine.Application.temporaryCachePath;
+#endif
+
+#else
+				throw new NotImplementedException();
 #endif
 			}
 		}
@@ -137,7 +151,7 @@ namespace Extenity.ApplicationToolbox
 					// We need consistency, rather than better hash algorithms.
 					// That's why GetHashCodeGuaranteed is used because it will
 					// stay here, guaranteed to be never modified forever.
-					var path = Application.dataPath;
+					var path = ApplicationPath;
 					var hash = path.GetHashCodeGuaranteed();
 					_PathHash = hash.ToHexString(false);
 				}
@@ -149,11 +163,13 @@ namespace Extenity.ApplicationToolbox
 
 		#region Company And Product Name
 
-		public static string AsciiCompanyName => Application.companyName.ConvertToAscii();
-		public static string AsciiProductName => Application.productName.ConvertToAscii();
+#if UNITY
+		public static string AsciiCompanyName => UnityEngine.Application.companyName.ConvertToAscii();
+		public static string AsciiProductName => UnityEngine.Application.productName.ConvertToAscii();
 
-		public static string AsciiCompanyNameWithoutSpaces => Application.companyName.ConvertToAscii().Replace(" ", "");
-		public static string AsciiProductNameWithoutSpaces => Application.productName.ConvertToAscii().Replace(" ", "");
+		public static string AsciiCompanyNameWithoutSpaces => UnityEngine.Application.companyName.ConvertToAscii().Replace(" ", "");
+		public static string AsciiProductNameWithoutSpaces => UnityEngine.Application.productName.ConvertToAscii().Replace(" ", "");
+#endif
 
 		#endregion
 
@@ -176,12 +192,25 @@ namespace Extenity.ApplicationToolbox
 
 		#endregion
 
-		#region Headless
+		#region Headless and Batch Mode
 
+#if UNITY
 		public static bool IsHeadless()
 		{
-			return SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null;
+			return UnityEngine.SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null;
 		}
+
+		public static bool IsBatchMode
+		{
+			get
+			{
+				// There are also these alternatives in case its needed.
+				// UnityEditorInternal.InternalEditorUtility.inBatchMode
+				// UnityEditorInternal.InternalEditorUtility.isHumanControllingUs
+				return UnityEngine.Application.isBatchMode;
+			}
+		}
+#endif
 
 		#endregion
 
@@ -198,6 +227,8 @@ namespace Extenity.ApplicationToolbox
 		/// </summary>
 		public static void LaunchMarketPage()
 		{
+#if UNITY
+
 #if UNITY_EDITOR
 			Log.Info("Ambiguous to launch the market page in Editor.");
 			//LaunchMarketPage_GooglePlay();
@@ -207,7 +238,11 @@ namespace Extenity.ApplicationToolbox
 #elif UNITY_IOS
 			LaunchMarketPage_AppStore();
 #else
-			throw new System.NotImplementedException();
+			throw new NotImplementedException();
+#endif
+
+#else
+			throw new NotImplementedException();
 #endif
 		}
 
@@ -219,7 +254,7 @@ namespace Extenity.ApplicationToolbox
 		{
 			var address = "itms-apps://itunes.apple.com/app/id" + AppStoreMarketID;
 			Log.Info("Launching market page: " + address);
-			Application.OpenURL(address);
+			UnityEngine.Application.OpenURL(address);
 		}
 
 #endif
@@ -228,9 +263,9 @@ namespace Extenity.ApplicationToolbox
 
 		private static void LaunchMarketPage_GooglePlay()
 		{
-			var address = "market://details?id=" + Application.identifier;
+			var address = "market://details?id=" + UnityEngine.Application.identifier;
 			Log.Info("Launching market page: " + address);
-			Application.OpenURL(address);
+			UnityEngine.Application.OpenURL(address);
 		}
 
 #endif
@@ -241,18 +276,26 @@ namespace Extenity.ApplicationToolbox
 
 		public static void Quit()
 		{
+#if UNITY
+
 #if UNITY_EDITOR
 			if (UnityEditor.EditorApplication.isPlaying)
 			{
 				UnityEditor.EditorApplication.isPlaying = false;
 			}
 #else
-			Application.Quit();
+			UnityEngine.Application.Quit();
+#endif
+
+#else
+			throw new NotImplementedException();
 #endif
 		}
 
 		public static void Restart()
 		{
+#if UNITY
+
 #if UNITY_EDITOR
 
 			if (UnityEditor.EditorApplication.isPlaying)
@@ -279,26 +322,13 @@ namespace Extenity.ApplicationToolbox
 #else
 			throw new NotImplementedException();
 #endif
-		}
 
-		#endregion
-
-		#region Batch Mode
-
-		public static bool IsBatchMode
-		{
-			get
-			{
-				// There are also these alternatives in case its needed.
-				// UnityEditorInternal.InternalEditorUtility.inBatchMode
-				// UnityEditorInternal.InternalEditorUtility.isHumanControllingUs
-				return Application.isBatchMode;
-			}
+#else
+			throw new NotImplementedException();
+#endif
 		}
 
 		#endregion
 	}
 
 }
-
-#endif
