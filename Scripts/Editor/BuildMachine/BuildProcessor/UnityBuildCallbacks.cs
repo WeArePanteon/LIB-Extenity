@@ -1,5 +1,4 @@
 using Extenity.BuildToolbox.Editor;
-using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 
@@ -14,15 +13,9 @@ namespace Extenity.BuildMachine.Editor
 
 		public void OnPreprocessBuild(BuildReport report)
 		{
-#if Release
-			var release = true;
-#else
-			var release = false;
+#if !DisableExtenityBuildReport
+			Log.Info("BuildMachine checking in at preprocess callback. BuildReport details: " + report.ToDetailedLogString());
 #endif
-			//var unityDebug = Debug.isDebugBuild; This does not say what option the build was started. Only tells if the Development option is ticked in Build Settings window.
-			var unityDebug = report.summary.options.HasFlag(BuildOptions.Development);
-
-			BuilderLog.Info($"BuildMachine checking in at preprocess callback (Release: {release}, UnityDev: {unityDebug})... Report details: " + report.ToDetailedLogString());
 
 			// See 713951791.
 			//EditorSceneManagerTools.EnforceUserToSaveAllModifiedScenes("First you need to save the scene before building."); Disabled because it causes an internal Unity error at build time.
@@ -30,8 +23,16 @@ namespace Extenity.BuildMachine.Editor
 
 		public void OnPostprocessBuild(BuildReport report)
 		{
-			BuilderLog.Info($"BuildMachine checking in at postprocess callback... Report details: " + report.ToDetailedLogString());
+#if !DisableExtenityBuildReport
+			Log.Info("BuildMachine checking in at postprocess callback. BuildReport details: " + report.ToDetailedLogString());
+#endif
 		}
+
+		#region Log
+
+		private static readonly Logger Log = new("Builder");
+
+		#endregion
 	}
 
 }

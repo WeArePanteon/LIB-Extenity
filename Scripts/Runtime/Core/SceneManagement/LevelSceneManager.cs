@@ -109,7 +109,7 @@ namespace Extenity.SceneManagementToolbox
 				{
 					if (!duplicateNameChecker.Add(sceneName))
 					{
-						Log.CriticalError($"Duplicate scene names are not allowed. Rename the scene '{sceneName}'.");
+						Log.Fatal($"Duplicate scene names are not allowed. Rename the scene '{sceneName}'.");
 					}
 
 					if (sceneName.StartsWith(levelSceneNamePrefix, StringComparison.Ordinal))
@@ -122,6 +122,12 @@ namespace Extenity.SceneManagementToolbox
 			Release.List(ref result);
 			return resultArray;
 		}
+
+		#endregion
+
+		#region Log
+
+		private static readonly Logger Log = new(nameof(LevelSceneManager));
 
 		#endregion
 	}

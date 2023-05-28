@@ -108,14 +108,14 @@ namespace Extenity.BuildMachine.Editor
 				// Make sure the class is serializable
 				if (!type.HasAttribute<JsonObjectAttribute>())
 				{
-					BuilderLog.Error($"Builder '{type.Name}' has no '{nameof(JsonObjectAttribute)}'.");
+					Log.Error($"Builder '{type.Name}' has no '{nameof(JsonObjectAttribute)}'.");
 				}
 
 				// Get BuilderInfo class attribute
 				var infoAttribute = type.GetAttribute<BuilderInfoAttribute>(true);
 				if (infoAttribute == null)
 				{
-					BuilderLog.Error($"Builder '{type.Name}' has no '{nameof(BuilderInfoAttribute)}'.");
+					Log.Error($"Builder '{type.Name}' has no '{nameof(BuilderInfoAttribute)}'.");
 				}
 
 				// Get Options type
@@ -167,7 +167,7 @@ namespace Extenity.BuildMachine.Editor
 							              {
 								              if (attribute.Order <= 0)
 								              {
-									              BuilderLog.Error($"The '{attribute.GetType().Name}' attribute should have an order above 0.");
+									              Log.Error($"The '{attribute.GetType().Name}' attribute should have an order above 0.");
 								              }
 								              return true;
 							              }
@@ -195,7 +195,7 @@ namespace Extenity.BuildMachine.Editor
 					if (previousMethodOrder == currentMethodOrder)
 					{
 						detected = true;
-						BuilderLog.Error($"Methods '{previousMethod.Name}' and '{currentMethod.Name}' have the same order of '{currentMethodOrder}'.");
+						Log.Error($"Methods '{previousMethod.Name}' and '{currentMethod.Name}' have the same order of '{currentMethodOrder}'.");
 					}
 
 					previousMethod = currentMethod;
@@ -203,12 +203,18 @@ namespace Extenity.BuildMachine.Editor
 				}
 				if (detected)
 				{
-					throw new Exception(BuilderLog.Prefix + "Failed to sort Build Step method list because there were methods with the same order value.");
+					throw new BuildMachineException("Failed to sort Build Step method list because there were methods with the same order value.");
 				}
 			}
 
 			return methods.Select(method => new BuildStepInfo(method)).ToArray();
 		}
+
+		#endregion
+
+		#region Log
+
+		private static readonly Logger Log = new("Builder");
 
 		#endregion
 	}

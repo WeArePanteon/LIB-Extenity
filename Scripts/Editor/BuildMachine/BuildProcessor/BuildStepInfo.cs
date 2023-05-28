@@ -7,13 +7,15 @@ namespace Extenity.BuildMachine.Editor
 	// See 11283467.
 	public enum BuildStepType
 	{
-		Warmup,
 		PreBuild,
+		LocalizationProcess,
 		AssetProcess,
 		SceneProcess,
 		UnityBuild,
 		PostBuild,
-		Deploy,
+		LocalizationDeploy,
+		AssetDeploy,
+		ApplicationDeploy,
 		Finalization,
 	}
 
@@ -42,7 +44,7 @@ namespace Extenity.BuildMachine.Editor
 			}
 			else
 			{
-				Type = BuildStepType.Warmup;
+				Type = BuildStepType.PreBuild;
 				Order = 0;
 				Name = null;
 				Method = null;

@@ -114,7 +114,7 @@ namespace Extenity.DebugToolbox.GraphPlotting
 
 			if (!AudioSource)
 			{
-				Log.Warning(nameof(AudioSourceGraphPlotter) + " requires " + nameof(AudioSource) + " component.", this);
+				Log.WarningWithContext(this, nameof(AudioSourceGraphPlotter) + " requires " + nameof(AudioSource) + " component.");
 				return;
 			}
 
@@ -137,6 +137,12 @@ namespace Extenity.DebugToolbox.GraphPlotting
 				IsPlayingChannel.Sample(AudioSource.isPlaying ? 1f : 0f, time);
 			}
 		}
+
+		#endregion
+
+		#region Log
+
+		private static readonly Logger Log = new(nameof(AudioSourceGraphPlotter));
 
 		#endregion
 	}

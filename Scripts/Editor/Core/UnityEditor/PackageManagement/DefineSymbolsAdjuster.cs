@@ -214,7 +214,7 @@ namespace Extenity.UnityEditorToolbox.Editor
 		[InitializeOnLoadMethod]
 		public static void AdjustDefineSymbolsForInstalledModules()
 		{
-			using (new QuickProfilerStopwatch($"{nameof(DefineSymbolsAdjuster)} calculations took {{0}}", 1f))
+			using (new QuickProfilerStopwatch(Log, nameof(DefineSymbolsAdjuster), 1f))
 			{
 				var packageManifest = PackageManagerTools.GetPackageManifestContent();
 				var configuration = GetCombinedDefineSymbolAdjustmentConfiguration();
@@ -281,6 +281,12 @@ namespace Extenity.UnityEditorToolbox.Editor
 				}
 			}
 		}
+
+		#endregion
+
+		#region Log
+
+		private static readonly Logger Log = new(nameof(DefineSymbolsAdjuster));
 
 		#endregion
 	}

@@ -12,7 +12,7 @@ namespace Extenity.CodingToolbox.Editor
 		[DidReloadScripts]
 		public static void EnsureAllNamespacesInAllAssemblies()
 		{
-			using (new QuickProfilerStopwatch($"{nameof(NamespaceChecker)} calculations took {{0}}", 1f))
+			using (new QuickProfilerStopwatch(Log, nameof(NamespaceChecker), 1f))
 			{
 				var assemblies = Sirenix.Utilities.AssemblyUtilities.GetAllAssemblies();
 				foreach (var assembly in assemblies)
@@ -53,9 +53,9 @@ namespace Extenity.CodingToolbox.Editor
 							// Skip mysterious types that come out of nowhere.
 							if (name.Equals("EmbeddedAttribute", StringComparison.Ordinal) ||
 							    name.Equals("IsReadOnlyAttribute", StringComparison.Ordinal) ||
-							    name.Equals("UnitySourceGeneratedAssemblyMonoScriptTypes", StringComparison.Ordinal) || 
-							    name.Equals("MonoScriptInfo", StringComparison.Ordinal) ||
-							    name.Equals("FileMonoScripts", StringComparison.Ordinal))
+							    name.StartsWith("UnitySourceGenerated", StringComparison.Ordinal) || // Encountered types: UnitySourceGeneratedAssemblyMonoScriptTypes, UnitySourceGeneratedAssemblyMonoScriptTypes_v1 
+							    name.StartsWith("MonoScript", StringComparison.Ordinal) || // Encountered types: MonoScriptInfo, MonoScriptData
+							    name.StartsWith("FileMonoScript", StringComparison.Ordinal)) // Encountered types: FileMonoScripts
 							{
 								continue;
 							}
@@ -104,6 +104,12 @@ namespace Extenity.CodingToolbox.Editor
 				}
 			}
 		}
+
+		#region Log
+
+		private static readonly Logger Log = new(nameof(NamespaceChecker));
+
+		#endregion
 	}
 
 }

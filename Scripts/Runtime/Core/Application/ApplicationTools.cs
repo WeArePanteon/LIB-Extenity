@@ -4,6 +4,11 @@ using System.Runtime.InteropServices;
 using Extenity.DataToolbox;
 using Extenity.FileSystemToolbox;
 
+#if UNITY_ANDROID && !UNITY_EDITOR
+using AndroidJavaClass = UnityEngine.AndroidJavaClass;
+using AndroidJavaObject = UnityEngine.AndroidJavaObject;
+#endif
+
 namespace Extenity.ApplicationToolbox
 {
 
@@ -317,7 +322,7 @@ namespace Extenity.ApplicationToolbox
 			// The best way to restart the application is not restarting but destroying all
 			// objects and reloading the splash menu item. Though static objects and singletons
 			// should be handled carefully.
-			Application.Quit();
+			UnityEngine.Application.Quit();
 
 #else
 			throw new NotImplementedException();
@@ -327,6 +332,12 @@ namespace Extenity.ApplicationToolbox
 			throw new NotImplementedException();
 #endif
 		}
+
+		#endregion
+
+		#region Log
+
+		private static readonly Logger Log = new(nameof(ApplicationTools));
 
 		#endregion
 	}

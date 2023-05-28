@@ -200,7 +200,7 @@ namespace Extenity.KernelToolbox
 					// the hash function failed so bad that a collision happened, or more likely the file got corrupt
 					// for some reason. So overwrite the file with new content and lets hope everything works out okay.
 
-					Log.CriticalError($"Possible hash collision or file corruption detected for hash {hash} with files of sizes {existingBytes.Length} and {bytes.Length}.");
+					Log.Fatal($"Possible hash collision or file corruption detected for hash {hash} with files of sizes {existingBytes.Length} and {bytes.Length}.");
 				}
 			}
 
@@ -226,6 +226,12 @@ namespace Extenity.KernelToolbox
 
 			return id;
 		}
+
+		#endregion
+
+		#region Log
+
+		private static readonly Logger Log = new(nameof(Storage));
 
 		#endregion
 	}

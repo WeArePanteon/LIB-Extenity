@@ -88,7 +88,7 @@ namespace Extenity.SubsystemManagementToolbox
 
 		private static void _OnQuit()
 		{
-			Log.DebugVerbose("Finalizing subsystem manager.");
+			Log.Verbose("Finalizing subsystem manager.");
 
 			Application.quitting -= _OnQuit;
 			SceneManager.sceneLoaded -= OnSceneLoaded;
@@ -127,6 +127,12 @@ namespace Extenity.SubsystemManagementToolbox
 		// {
 		// 	Log.Info($"OnActiveSceneChanged previous: {previous.name} current: {current.name}");
 		// }
+
+		#region Log
+
+		private static readonly Logger Log = new(nameof(SubsystemManager));
+
+		#endregion
 	}
 
 }

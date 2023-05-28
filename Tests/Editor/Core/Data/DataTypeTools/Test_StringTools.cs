@@ -403,12 +403,12 @@ namespace ExtenityTests.DataToolbox
 
 		private static readonly object[] TestCases_ToStringAsCharArray_Int32 =
 		{
-			new Action<Int32>[]{ TestValue_ToStringAsCharArray_Int32 },
-			new Action<Int32>[]{ TestValue_ToStringAsCharArrayWithPrefix_Int32 },
-			new Action<Int32>[]{ TestValue_ToStringAsCharArrayWithPostfix_Int32 },
-			new Action<Int32>[]{ TestValue_ToStringAsCharArray_WithThousandsSeparator_Int32 },
-			new Action<Int32>[]{ TestValue_ToStringAsCharArrayWithPrefix_WithThousandsSeparator_Int32 },
-			new Action<Int32>[]{ TestValue_ToStringAsCharArrayWithPostfix_WithThousandsSeparator_Int32 },
+			new Action<Int32>[] { TestValue_ToStringAsCharArray_Int32 },
+			new Action<Int32>[] { TestValue_ToStringAsCharArrayWithPrefix_Int32 },
+			new Action<Int32>[] { TestValue_ToStringAsCharArrayWithPostfix_Int32 },
+			new Action<Int32>[] { TestValue_ToStringAsCharArray_WithThousandsSeparator_Int32 },
+			new Action<Int32>[] { TestValue_ToStringAsCharArrayWithPrefix_WithThousandsSeparator_Int32 },
+			new Action<Int32>[] { TestValue_ToStringAsCharArrayWithPostfix_WithThousandsSeparator_Int32 },
 		};
 
 		[Test]
@@ -497,12 +497,12 @@ namespace ExtenityTests.DataToolbox
 
 		private static readonly object[] TestCases_ToStringAsCharArray_Int64 =
 		{
-			new Action<Int64>[]{ TestValue_ToStringAsCharArray_Int64 },
-			new Action<Int64>[]{ TestValue_ToStringAsCharArrayWithPrefix_Int64 },
-			new Action<Int64>[]{ TestValue_ToStringAsCharArrayWithPostfix_Int64 },
-			new Action<Int64>[]{ TestValue_ToStringAsCharArray_WithThousandsSeparator_Int64 },
-			new Action<Int64>[]{ TestValue_ToStringAsCharArrayWithPrefix_WithThousandsSeparator_Int64 },
-			new Action<Int64>[]{ TestValue_ToStringAsCharArrayWithPostfix_WithThousandsSeparator_Int64 },
+			new Action<Int64>[] { TestValue_ToStringAsCharArray_Int64 },
+			new Action<Int64>[] { TestValue_ToStringAsCharArrayWithPrefix_Int64 },
+			new Action<Int64>[] { TestValue_ToStringAsCharArrayWithPostfix_Int64 },
+			new Action<Int64>[] { TestValue_ToStringAsCharArray_WithThousandsSeparator_Int64 },
+			new Action<Int64>[] { TestValue_ToStringAsCharArrayWithPrefix_WithThousandsSeparator_Int64 },
+			new Action<Int64>[] { TestValue_ToStringAsCharArrayWithPostfix_WithThousandsSeparator_Int64 },
 		};
 
 		[Test]
@@ -812,7 +812,7 @@ namespace ExtenityTests.DataToolbox
 				var expectedString = convertToExpectedString(value, format);
 				if (!expectedString.Equals(resultString))
 				{
-					Log.Error($"Erroneous value generated while converting value '{value.ToString()}' with format '{format}' to string resulting '{BigBuffer.ConvertToString(0, length)}'.");
+					Assert.Fail($"Erroneous value generated while converting value '{value.ToString()}' with format '{format}' to string resulting '{BigBuffer.ConvertToString(0, length)}'.");
 				}
 				Assert.AreEqual(expectedString, resultString);
 				Assert.AreEqual(expectedString.Length, length);

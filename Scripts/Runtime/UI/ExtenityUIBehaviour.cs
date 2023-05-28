@@ -51,7 +51,7 @@ namespace Extenity.UIToolbox
 
 			if (!CanvasGroup)
 			{
-				Log.CriticalError("Failed to find which CanvasGroup the callback is called for.", this);
+				Log.FatalWithContext(this, "Failed to find which CanvasGroup the callback is called for.");
 				return;
 			}
 
@@ -108,6 +108,12 @@ namespace Extenity.UIToolbox
 
 			base.OnBeforeTransformParentChanged();
 		}
+
+		#endregion
+
+		#region Log
+
+		private static readonly Logger Log = new(nameof(ExtenityUIBehaviour));
 
 		#endregion
 	}

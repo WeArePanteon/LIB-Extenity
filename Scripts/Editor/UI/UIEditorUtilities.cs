@@ -56,7 +56,7 @@ namespace Extenity.UIToolbox.Editor
 					{
 						if (EditorUtility.DisplayDialog(
 							"Reset Scale",
-							$"Resetting the scale of object. Proceed?\n\n{rectTransform.gameObject.FullName()}\n{rectTransform.localScale.ToSerializableString()}",
+							$"Resetting the scale of object. Proceed?\n\n{rectTransform.FullGameObjectName()}\n{rectTransform.localScale.ToSerializableString()}",
 							"Yes", "Skip"))
 						{
 							Undo.RecordObject(rectTransform, "Reset scale to one");
@@ -92,15 +92,15 @@ namespace Extenity.UIToolbox.Editor
 			// Log
 			if (isCreated)
 			{
-				Log.Info($"{typeof(TNewComponent).Name} component created in object '{clickable.gameObject.name}'.", clickable.gameObject);
+				Log.InfoWithContext(clickable, $"{typeof(TNewComponent).Name} component created in object '{clickable.GameObjectNameSafe()}'.");
 			}
 			else if (movedBy != 0)
 			{
-				Log.Info($"{typeof(TNewComponent).Name} component moved above {typeof(TTarget).Name} component in object '{clickable.gameObject.name}'.", clickable.gameObject);
+				Log.InfoWithContext(clickable, $"{typeof(TNewComponent).Name} component moved above {typeof(TTarget).Name} component in object '{clickable.GameObjectNameSafe()}'.");
 			}
 			else
 			{
-				Log.Info($"{typeof(TTarget).Name} '{clickable.gameObject.name}' already has a {typeof(TNewComponent).Name}.", clickable.gameObject);
+				Log.InfoWithContext(clickable, $"{typeof(TTarget).Name} '{clickable.gameObject.name}' already has a {typeof(TNewComponent).Name}.");
 			}
 
 			return component;
@@ -154,6 +154,12 @@ namespace Extenity.UIToolbox.Editor
 
 			return instance;
 		}
+
+		#endregion
+
+		#region Log
+
+		private static readonly Logger Log = new(nameof(UIEditorUtilities));
 
 		#endregion
 	}

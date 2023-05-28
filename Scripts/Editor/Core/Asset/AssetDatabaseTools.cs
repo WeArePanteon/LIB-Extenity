@@ -3,7 +3,6 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -557,12 +556,12 @@ namespace Extenity.AssetToolbox.Editor
 
 			if (line >= 0)
 			{
-				Log.Info($"Opening script '{scriptPath}' at line '{line}'.", asset);
+				Log.InfoWithContext(asset, $"Opening script '{scriptPath}' at line '{line}'.");
 				AssetDatabase.OpenAsset(asset, line);
 			}
 			else
 			{
-				Log.Info($"Opening script '{scriptPath}'.", asset);
+				Log.InfoWithContext(asset, $"Opening script '{scriptPath}'.");
 				AssetDatabase.OpenAsset(asset);
 			}
 		}
@@ -686,7 +685,7 @@ namespace Extenity.AssetToolbox.Editor
 		{
 			var paths = GetAllScriptAssetPaths().OrderByDescending(item => item).ToList();
 
-			using (new QuickProfilerStopwatch("Import Took '{0}'"))
+			using (new QuickProfilerStopwatch(Log, "Reimporting scripts"))
 			{
 				Log.Info($"Reimporting {paths.Count} scripts.");
 				AssetDatabase.StartAssetEditing();
@@ -697,7 +696,7 @@ namespace Extenity.AssetToolbox.Editor
 				AssetDatabase.StopAssetEditing();
 			}
 
-			using (new QuickProfilerStopwatch("Refresh Took '{0}'"))
+			using (new QuickProfilerStopwatch(Log, "Refreshing AssetDatabase"))
 			{
 				AssetDatabase.Refresh();
 			}
@@ -796,23 +795,28 @@ namespace Extenity.AssetToolbox.Editor
 			sortedResults.Sort((item1, item2) => string.Compare(item1.AssetPath, item2.AssetPath, StringComparison.Ordinal));
 
 			// List referenced assets
-			using (Log.Indent($"Listing all assets of type(s) '{string.Join(", ", types.Select(type => type.Name))}' in '{gameObjects.Count}' object(s){(includeChildren ? " and their children" : "")}..."))
+			Log.Info($"Listing all assets of type(s) '{string.Join(", ", types.Select(type => type.Name))}' in '{gameObjects.Count}' object(s){(includeChildren ? " and their children" : "")}...");
+			using (Log.IndentedScope)
 			{
 				foreach (var result in sortedResults)
 				{
-					Log.Info($"{result.AssetPath}", result.ReferencedObject);
+					Log.InfoWithContext(result.ReferencedObject, $"{result.AssetPath}");
 				}
 			}
 
 			// List referenced assets and components where they are referenced
-			using (Log.Indent("Detailed listing of components where the assets are referenced..."))
+			Log.Info("Detailed listing of components where the assets are referenced...");
+			using (Log.IndentedScope)
 			{
 				foreach (var result in sortedResults)
 				{
-					Log.Info($"{result.AssetPath}", result.ReferencedObject);
-					foreach (var referencedByComponent in result.ReferencedInComponents)
+					Log.InfoWithContext(result.ReferencedObject, $"{result.AssetPath}");
+					using (Log.IndentedScope)
 					{
-						Log.Info($"{Log.IndentationOneLevelString}Referenced in: '{referencedByComponent.FullName()}'", referencedByComponent);
+						foreach (var referencedByComponent in result.ReferencedInComponents)
+						{
+							Log.InfoWithContext(referencedByComponent, $"Referenced in: '{referencedByComponent.FullName()}'");
+						}
 					}
 				}
 			}
@@ -871,11 +875,11 @@ namespace Extenity.AssetToolbox.Editor
 			itemPath = itemPath.Replace(@"/", @"\"); // Explorer doesn't like slashes
 			if (Directory.Exists(itemPath))
 			{
-				Process.Start("explorer.exe", "\"" + itemPath + "\"");
+				System.Diagnostics.Process.Start("explorer.exe", "\"" + itemPath + "\"");
 			}
 			else if (File.Exists(itemPath))
 			{
-				Process.Start("explorer.exe", "/select,\"" + itemPath + "\"");
+				System.Diagnostics.Process.Start("explorer.exe", "/select,\"" + itemPath + "\"");
 			}
 #else
 			throw new NotImplementedException();
@@ -916,6 +920,12 @@ namespace Extenity.AssetToolbox.Editor
 
 		#endregion
 
+		#region Log
+
+		private static Logger Log = new(nameof(AssetDatabaseTools));
+
+		#endregion
+		
 		public static List<string> GetSelectedAssetPaths(bool includeFilesInSubdirectoriesOfSelectedDirectories)
 		{
 			var selectionObjects = Selection.GetFiltered(typeof(Object), SelectionMode.Assets);

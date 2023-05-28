@@ -138,7 +138,7 @@ namespace Extenity.DebugToolbox.GraphPlotting
 
 			if (!Rigidbody)
 			{
-				Log.Warning(nameof(RigidbodyGraphPlotter) + " requires " + nameof(Rigidbody) + " component.", this);
+				Log.WarningWithContext(this, nameof(RigidbodyGraphPlotter) + " requires " + nameof(Rigidbody) + " component.");
 				return;
 			}
 
@@ -200,6 +200,12 @@ namespace Extenity.DebugToolbox.GraphPlotting
 					AngularVelocityChannels[2].Sample(angularVelocity.z, time);
 			}
 		}
+
+		#endregion
+
+		#region Log
+
+		private static readonly Logger Log = new(nameof(RigidbodyGraphPlotter));
 
 		#endregion
 	}

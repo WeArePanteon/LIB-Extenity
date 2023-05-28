@@ -1,4 +1,4 @@
-/*
+#if UNITY
 //
 // System.NumberFormatter.cs
 //
@@ -2271,4 +2271,4 @@ namespace Extenity.DataToolbox
 	}
 
 }
-*/
+#endif

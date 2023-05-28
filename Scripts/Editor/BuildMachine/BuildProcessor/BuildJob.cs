@@ -18,14 +18,6 @@ namespace Extenity.BuildMachine.Editor
 		JobFinished,
 	}
 
-	//public enum BuildJobPhaseState
-	//{
-	//	Unknown,
-	//	PhaseRunning,
-	//	PhaseFinalizing,
-	//	PhaseFinished,
-	//}
-
 	public enum BuildJobStepState
 	{
 		Unknown,
@@ -86,36 +78,27 @@ namespace Extenity.BuildMachine.Editor
 			if (plan == null)
 				throw new ArgumentNullException(nameof(plan));
 
-			var builders = CreateBuilderInstancesMimickingBuilderOptions(plan.BuilderOptionsList);
+			var builder = CreateBuilderInstanceMimickingBuilderOptions(plan.BuilderOptions);
 
 			ID = Guid.NewGuid().ToString();
 			CreatedDate = DateTime.Now;
 			Plan = plan;
-			Builders = builders;
-
-			UnityEditorPath = EditorApplication.applicationPath;
+			Builder = builder;
 
 			OverallState = BuildJobOverallState.JobInitialized;
 		}
 
-		private static Builder[] CreateBuilderInstancesMimickingBuilderOptions(BuilderOptions[] builderOptionsList)
+		private static Builder CreateBuilderInstanceMimickingBuilderOptions(BuilderOptions builderOptions)
 		{
-			var builders = new Builder[builderOptionsList.Length];
-			for (var i = 0; i < builderOptionsList.Length; i++)
-			{
-				var builderOptions = builderOptionsList[i];
+			// Find the related Builder via its BuilderOptions
+			var builderOptionsType = builderOptions.GetType();
+			var builderInfo = BuilderManager.BuilderInfos.Single(entry => entry.OptionsType == builderOptionsType);
 
-				// Find the related Builder via its BuilderOptions
-				var builderOptionsType = builderOptions.GetType();
-				var builderInfo = BuilderManager.BuilderInfos.Single(entry => entry.OptionsType == builderOptionsType);
+			// Create Builder instance and assign its Options
+			var builder = (Builder)Activator.CreateInstance(builderInfo.Type);
+			builder.GetType().GetField(nameof(Builder<BuilderOptions>.Options)).SetValue(builder, builderOptions); // Unfortunately Options field is defined in the Builder<> generic class and not the Builder class.
 
-				// Create Builder instance and assign its Options
-				var builder = (Builder)Activator.CreateInstance(builderInfo.Type);
-				builder.GetType().GetField(nameof(Builder<BuilderOptions>.Options)).SetValue(builder, builderOptions); // Unfortunately Options field is defined in the Builder<> generic class and not the Builder class.
-
-				builders[i] = builder;
-			}
-			return builders;
+			return builder;
 		}
 
 		#endregion
@@ -140,23 +123,6 @@ namespace Extenity.BuildMachine.Editor
 
 		#endregion
 
-		#region Schedule Unity Editor Restart
-
-		[JsonProperty]
-		public readonly string UnityEditorPath;
-
-		[JsonProperty]
-		public bool IsUnityEditorRestartScheduled;
-
-		public void ScheduleUnityEditorRestart()
-		{
-			BuilderLog.Info("Scheduling Unity Editor restart.");
-			IsUnityEditorRestartScheduled = true;
-			throw new NotImplementedException();
-		}
-
-		#endregion
-
 		#region Schedule Assembly Reload
 
 		[JsonProperty]
@@ -164,7 +130,7 @@ namespace Extenity.BuildMachine.Editor
 
 		public void ScheduleAssemblyReload()
 		{
-			BuilderLog.Info("Scheduling assembly reload.");
+			Log.Info("Scheduling assembly reload.");
 			IsAssemblyReloadScheduled = true;
 		}
 
@@ -180,14 +146,13 @@ namespace Extenity.BuildMachine.Editor
 		#region Builders
 
 		[JsonProperty]
-		public readonly Builder[] Builders;
+		public readonly Builder Builder;
 
 		#endregion
 
 		#region State
 
 		public BuildJobOverallState OverallState = BuildJobOverallState.Unknown;
-		//public BuildJobPhaseState PhaseState = BuildJobPhaseState.Unknown;
 		public BuildJobStepState StepState = BuildJobStepState.Unknown;
 
 		/// <summary>
@@ -202,7 +167,6 @@ namespace Extenity.BuildMachine.Editor
 		public BuildJobResult Result = BuildJobResult.Incomplete;
 
 		public int CurrentPhase = -1;
-		public int CurrentBuilder = -1;
 		public string PreviousBuildStep = "";
 		public string CurrentBuildStep = "";
 		public string PreviousFinalizationStep = "";
@@ -213,9 +177,7 @@ namespace Extenity.BuildMachine.Editor
 		[JsonIgnore]
 		public BuildStepInfo _CurrentStepInfoCached = BuildStepInfo.Empty;
 
-		public bool IsLastBuilder => CurrentBuilder >= Builders.Length - 1;
 		public bool IsLastPhase => CurrentPhase >= Plan.BuildPhases.Length - 1;
-		public bool IsCurrentBuilderAssigned => Builders.IsInRange(CurrentBuilder);
 
 		public bool IsPreviousBuildStepAssigned => !string.IsNullOrEmpty(PreviousBuildStep);
 		public bool IsCurrentBuildStepAssigned => !string.IsNullOrEmpty(CurrentBuildStep);
@@ -224,12 +186,12 @@ namespace Extenity.BuildMachine.Editor
 
 		internal void SetResult(BuildJobResult result)
 		{
-			BuilderLog.Info($"Setting result to '{result}'");
+			Log.Info($"Setting result to '{result}'");
 			if (result == BuildJobResult.Succeeded)
 			{
 				if (Result == BuildJobResult.Failed)
 				{
-					throw new Exception(BuilderLog.Prefix + $"Tried to set '{BuildJobResult.Succeeded}' result over '{BuildJobResult.Failed}' job.");
+					throw new BuildMachineException($"Tried to set '{BuildJobResult.Succeeded}' result over '{BuildJobResult.Failed}' job.");
 				}
 			}
 			Result = result;
@@ -245,47 +207,11 @@ namespace Extenity.BuildMachine.Editor
 
 		#endregion
 
-		#region Version Increment
-
-		// public BuildTools.TemporarilyIncrementVersion TemporarilyIncrementVersion;
-
-		#endregion
-
 		#region Start
 
 		public void Start()
 		{
 			BuildJobRunner.Start(this);
-		}
-
-		#endregion
-
-		#region Build Run Initialization
-
-		internal void BuildRunInitialization()
-		{
-			// Commented out for future needs.
-			//TemporarilyIncrementVersion = BuildTools.TemporarilyIncrementVersion.Create(Plan.AddMajorVersion, Plan.AddMinorVersion, Plan.AddBuildVersion);
-		}
-
-		#endregion
-
-		#region Build Run Finalization
-
-		internal void BuildRunFinalization()
-		{
-			switch (Result)
-			{
-				case BuildJobResult.Succeeded:
-					break;
-				case BuildJobResult.Failed:
-					{
-						// TemporarilyIncrementVersion.Revert();
-					}
-					break;
-				default:
-					throw new ArgumentOutOfRangeException(nameof(Result), Result, "");
-			}
 		}
 
 		#endregion
@@ -321,9 +247,9 @@ namespace Extenity.BuildMachine.Editor
 			var json2 = InternalSerializeToJson(deserialized);
 			if (json != json2)
 			{
-				BuilderLog.Error("Json-1:\n" + json);
-				BuilderLog.Error("Json-2:\n" + json2);
-				throw new Exception(BuilderLog.Prefix + "Serialization consistency check failed.");
+				Log.Error("Json-1:\n" + json);
+				Log.Error("Json-2:\n" + json2);
+				throw new BuildMachineException("Serialization consistency check failed.");
 			}
 
 			return json;
@@ -363,9 +289,9 @@ namespace Extenity.BuildMachine.Editor
 			var json2 = InternalSerializeToJson(job);
 			if (json != json2)
 			{
-				BuilderLog.Error("Json-1:\n" + json);
-				BuilderLog.Error("Json-2:\n" + json2);
-				throw new Exception(BuilderLog.Prefix + "Serialization consistency check failed.");
+				Log.Error("Json-1:\n" + json);
+				Log.Error("Json-2:\n" + json2);
+				throw new BuildMachineException("Serialization consistency check failed.");
 			}
 
 			return job;
@@ -403,27 +329,21 @@ namespace Extenity.BuildMachine.Editor
 			return CurrentPhase + "-" + Plan.BuildPhases[CurrentPhase].Name;
 		}
 
-		public string ToStringCurrentBuilder()
+		public string ToStringBuilderName()
 		{
-			if (Builders.IsNullOrEmpty())
-			{
-				return CurrentBuilder + "-[NullBuilders]";
-			}
-			if (!Builders.IsInRange(CurrentBuilder))
-			{
-				return CurrentBuilder + "-[OutOfRange]";
-			}
-			if (Builders[CurrentBuilder] == null)
-			{
-				return CurrentBuilder + "-[NullBuilder]";
-			}
-			return CurrentBuilder + "-" + Builders[CurrentBuilder].Info.Name;
+			return Builder.Info.Name;
 		}
 
 		public string ToStringCurrentPhaseBuilderAndStep()
 		{
-			return $"[Phase: {ToStringCurrentPhase()}, Builder: {ToStringCurrentBuilder()}, Step: {CurrentBuildStep}, StepState: {StepState}]";
+			return $"[Phase: {ToStringCurrentPhase()}, Builder: {ToStringBuilderName()}, Step: {CurrentBuildStep}, StepState: {StepState}]";
 		}
+
+		#endregion
+
+		#region Log
+
+		private static readonly Logger Log = new("Builder");
 
 		#endregion
 	}

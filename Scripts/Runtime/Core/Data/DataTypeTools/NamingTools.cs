@@ -82,18 +82,28 @@ namespace Extenity.DataToolbox
 		{
 			if (!me || maxHierarchyLevels <= 0)
 				return NullGameObjectName;
-			var name = me.name;
+
+			var stringBuilder = StringTools.SharedStringBuilder.Value;
+			StringTools.ClearSharedStringBuilder(stringBuilder);
+
+			stringBuilder.Append(me.name);
 			var parent = me.transform.parent;
 			maxHierarchyLevels--;
 			while (maxHierarchyLevels > 0 && parent)
 			{
-				name = parent.name + separator + name;
+				stringBuilder.Insert(0, separator);
+				stringBuilder.Insert(0, parent.name);
 				parent = parent.parent;
 				maxHierarchyLevels--;
 			}
-			return parent
-				? "..." + separator + name
-				: name;
+
+			if (parent)
+			{
+				stringBuilder.Insert(0, separator);
+				stringBuilder.Insert(0, "...");
+			}
+
+			return stringBuilder.ToString();
 		}
 
 		public static string FullName(this Component me, int maxHierarchyLevels = DefaultMaxHierarchyLevels, char gameObjectNameSeparator = '/', char componentNameSeparator = '|')
@@ -113,35 +123,25 @@ namespace Extenity.DataToolbox
 
 		public static string FullObjectName(this object me, int maxHierarchyLevels = DefaultMaxHierarchyLevels, char gameObjectNameSeparator = '/', char componentNameSeparator = '|')
 		{
+			switch (me)
+			{
 #if UNITY
-			if (me is Component component)
-			{
-				return component
-					? component.FullName(maxHierarchyLevels, gameObjectNameSeparator: gameObjectNameSeparator, componentNameSeparator: componentNameSeparator)
-					: NullComponentName;
-			}
-			if (me is GameObject gameObject)
-			{
-				return gameObject
-					? gameObject.FullName(maxHierarchyLevels, separator: gameObjectNameSeparator)
-					: NullGameObjectName;
-			}
-			if (me is UnityEngine.Object unityObject)
-			{
-				return unityObject
-					? unityObject.ToString()
-					: NullObjectName;
-			}
+				case Component component:
+					return component.FullName(maxHierarchyLevels, gameObjectNameSeparator, componentNameSeparator);
+				case GameObject gameObject:
+					return gameObject.FullName(maxHierarchyLevels, gameObjectNameSeparator);
+				case UnityEngine.Object unityObject:
+					return unityObject
+						? unityObject.ToString()
+						: NullObjectName;
 #endif
-			if (me is Delegate asDelegate)
-			{
-				return asDelegate != null
-					? asDelegate.FullNameOfTargetAndMethod()
-					: NullDelegateName;
+				case Delegate asDelegate:
+					return asDelegate.FullNameOfTargetAndMethod();
+				default:
+					return me != null
+						? me.ToString()
+						: NullName;
 			}
-			return me != null
-				? me.ToString()
-				: NullName;
 		}
 
 		#endregion

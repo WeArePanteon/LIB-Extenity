@@ -36,6 +36,12 @@ namespace Extenity.BuildToolbox.Editor
 			Log.Info($"Included DLLs ({dllsWithoutDebugFiles.Count}):\n" + string.Join("\n", dllsWithoutDebugFiles));
 			report.DetailedLog(nameof(DLLBuildReport));
 		}
+
+		#region Log
+
+		private static readonly Logger Log = new(nameof(DLLBuildReport));
+
+		#endregion
 	}
 
 	#endregion
@@ -49,6 +55,7 @@ namespace Extenity.BuildToolbox.Editor
 		/// </summary>
 		public static void CreateBuildReport(BuildPlayerOptions buildPlayerOptions)
 		{
+			const string typeName = "BuildReportTool.ReportGenerator, BuildReportTool.Editor";
 			try
 			{
 				// We don't want a hard link to the asset. So Reflection saves the day.
@@ -56,14 +63,21 @@ namespace Extenity.BuildToolbox.Editor
 				// BuildReportTool.ReportGenerator.CreateReport(buildPlayerOptions, customEditorLogPath);
 				string customEditorLogPath = null;
 				ReflectionTools.CallMethodOfTypeByName(
-					"BuildReportTool.ReportGenerator, BuildReportTool.Editor",
+					typeName,
 					"CreateReport",
 					BindingFlags.Static | BindingFlags.Public, null,
 					new object[] { buildPlayerOptions, customEditorLogPath });
 			}
 			catch (Exception exception)
 			{
-				Log.Warning("Failed to generate build report. Ignoring the error, but you probably won't see the report output. Exception: " + exception);
+				if (exception.Message.Contains("Type '" + typeName + "' not found"))
+				{
+					Log.Info("Could not find Build Report Tool asset store package in project. Please import it if you like to see detailed build report.");
+				}
+				else
+				{
+					Log.Error("Failed to generate build report via Build Report Tool asset store package. Exception: " + exception);
+				}
 			}
 		}
 
@@ -88,6 +102,9 @@ namespace Extenity.BuildToolbox.Editor
 			{
 				Title("Summary");
 				{
+					var isDevelopmentBuild = report.summary.options.HasFlag(BuildOptions.Development);
+
+					Line("Development Build: " + isDevelopmentBuild);
 					Line("Result: " + report.summary.result);
 					Line("Total Errors: " + report.summary.totalErrors);
 					Line("Total Warnings: " + report.summary.totalWarnings);
@@ -97,8 +114,8 @@ namespace Extenity.BuildToolbox.Editor
 					Line("Platform Group: " + report.summary.platformGroup);
 					Line("Options: " + report.summary.options);
 					Line("Output Path: " + report.summary.outputPath);
-					Line("Started At: " + report.summary.buildStartedAt);
-					Line("Ended At: " + report.summary.buildEndedAt);
+					Line("Build Started At: " + report.summary.buildStartedAt);
+					Line("Build Ended At: " + report.summary.buildEndedAt);
 					Line("GUID: " + report.summary.guid);
 					//Line("CRC: " + report.summary.crc);
 					//Line("Build Type: " + report.summary.buildType);
@@ -164,6 +181,7 @@ namespace Extenity.BuildToolbox.Editor
 					{
 						Line("Role: " + file.role);
 						Line("Size: " + file.size);
+						Line("ID: " + file.id);
 					}
 					DecreaseIndent();
 				}
@@ -261,6 +279,12 @@ namespace Extenity.BuildToolbox.Editor
 			// ReSharper restore HeapView.ClosureAllocation
 			// ReSharper restore HeapView.BoxingAllocation
 		}
+
+		#endregion
+
+		#region Log
+
+		private static readonly Logger Log = new(nameof(BuildReportTools));
 
 		#endregion
 	}

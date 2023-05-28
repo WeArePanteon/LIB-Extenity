@@ -116,7 +116,7 @@ namespace Extenity.GameObjectToolbox.Editor
 				if (component)
 				{
 					// Do not merge all logs in a single log entry. Log each error in a separate entry that points to the gameobject in log's context for ease of use.
-					Log.Error($"Object of component '{typeof(T).Name}' exists in scene '{scene.name}'.", component.gameObject);
+					Log.ErrorWithContext(component, $"Object of component '{typeof(T).Name}' exists in scene '{scene.name}'.");
 					found = true;
 				}
 			}
@@ -147,7 +147,7 @@ namespace Extenity.GameObjectToolbox.Editor
 				if (component)
 				{
 					// Do not merge all logs in a single log entry. Log each error in a separate entry that points to the gameobject in log's context for ease of use.
-					Log.Error($"Static object of component '{typeof(T).Name}' exists in scene '{scene.name}'.", component.gameObject);
+					Log.ErrorWithContext(component, $"Static object of component '{typeof(T).Name}' exists in scene '{scene.name}'.");
 					found = true;
 				}
 			}
@@ -287,7 +287,7 @@ namespace Extenity.GameObjectToolbox.Editor
 
 				count++;
 				if (log)
-					deletedObjectsText.AppendLine(component.gameObject.FullName());
+					deletedObjectsText.AppendLine(component.FullGameObjectName());
 				if (undoable)
 					Undo.DestroyObjectImmediate(component.gameObject);
 				else
@@ -326,7 +326,7 @@ namespace Extenity.GameObjectToolbox.Editor
 
 				count++;
 				if (log)
-					deletedObjectsText.AppendLine(component.gameObject.FullName());
+					deletedObjectsText.AppendLine(component.FullGameObjectName());
 				if (undoable)
 					Undo.DestroyObjectImmediate(component.gameObject);
 				else
@@ -458,7 +458,7 @@ namespace Extenity.GameObjectToolbox.Editor
 					meshFilterCount++;
 
 				if (log)
-					deletedObjectsText.AppendLine(meshRenderer.gameObject.FullName());
+					deletedObjectsText.AppendLine(meshRenderer.FullGameObjectName());
 				if (undoable)
 				{
 					Undo.DestroyObjectImmediate(meshRenderer);
@@ -546,6 +546,12 @@ namespace Extenity.GameObjectToolbox.Editor
 				QuicksortAscending(transformsAndNames, i, right);
 			}
 		}
+
+		#endregion
+
+		#region Log
+
+		private static readonly Logger Log = new(nameof(EditorGameObjectTools));
 
 		#endregion
 	}

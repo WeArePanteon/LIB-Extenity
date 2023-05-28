@@ -276,7 +276,7 @@ namespace Extenity.UnityEditorToolbox.Editor
 			}
 			catch (Exception exception)
 			{
-				Log.Exception(exception);
+				Log.Error(exception);
 			}
 			finally
 			{
@@ -608,6 +608,12 @@ namespace Extenity.UnityEditorToolbox.Editor
 				return _serializedObject;
 			}
 		}
+
+		#endregion
+
+		#region Log
+
+		private static readonly Logger Log = new(nameof(ExtenityEditorWindowBase));
 
 		#endregion
 	}

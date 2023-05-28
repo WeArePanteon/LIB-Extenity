@@ -201,7 +201,7 @@ namespace Extenity.ApplicationToolbox.Editor
 					}
 					else
 					{
-						Log.CriticalError(message);
+						Log.Fatal(message);
 					}
 				}
 			}
@@ -215,8 +215,10 @@ namespace Extenity.ApplicationToolbox.Editor
 		private static void TellIfAndroidSDKInstalledWithUnity()
 		{
 			bool isInstalled;
-			using (new QuickProfilerStopwatch("Detection took {0}"))
+			using (new QuickProfilerStopwatch(Log, "Android SDK installation detection"))
+			{
 				isInstalled = IsAndroidSDKInstalledWithUnity();
+			}
 
 			EditorUtility.DisplayDialog("Info", $"Android SDK is {(isInstalled ? "" : "NOT ")}installed with Unity.", "Okay");
 		}		
@@ -239,6 +241,12 @@ namespace Extenity.ApplicationToolbox.Editor
 				return true;
 			throw new Exception($"While checking if Android SDK is installed with Unity, found more than one '{adbFileName}' files under Unity Editor installation at '{editorDirectory}'.");
 		}
+
+		#endregion
+
+		#region Log
+
+		private static readonly Logger Log = new(nameof(EditorApplicationTools));
 
 		#endregion
 	}

@@ -304,7 +304,7 @@ namespace Extenity.Testing
 				}
 				catch (Exception exception)
 				{
-					Log.Exception(exception);
+					Log.Error(exception);
 				}
 				var endTime = Time.realtimeSinceStartup;
 
@@ -314,6 +314,12 @@ namespace Extenity.Testing
 
 			Log.Info($"Monkey testing finished with total of {meanSessionDuration.ValueCount} sessions, an average of {meanMoveCount.Mean} moves and an average session duration of {meanSessionDuration.Mean.ToStringMinutesSecondsMillisecondsFromSeconds()}.");
 		}
+
+		#endregion
+
+		#region Log
+
+		private static readonly Logger Log = new(nameof(ExtenityTestBase));
 
 		#endregion
 	}

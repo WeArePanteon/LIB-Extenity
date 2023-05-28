@@ -409,7 +409,7 @@ namespace Extenity.MessagingToolbox
 		{
 			if (IsInvoking)
 			{
-				Log.CriticalError("Invoked event while an invocation is ongoing.");
+				Log.Fatal("Invoked event while an invocation is ongoing.");
 				return;
 			}
 			IsInvoking = true;
@@ -459,7 +459,7 @@ namespace Extenity.MessagingToolbox
 		{
 			if (IsInvoking)
 			{
-				Log.CriticalError("Invoked event while an invocation is ongoing.");
+				Log.Fatal("Invoked event while an invocation is ongoing.");
 				return;
 			}
 			IsInvoking = true;
@@ -495,7 +495,7 @@ namespace Extenity.MessagingToolbox
 					}
 					catch (Exception exception)
 					{
-						Log.Exception(exception, listener.LogObject);
+						Log.ErrorWithContext(listener.LogObject, exception);
 					}
 				}
 
@@ -510,6 +510,8 @@ namespace Extenity.MessagingToolbox
 		#endregion
 
 		#region Log
+
+		private static readonly Logger Log = new("ExtenityEvent");
 
 		public string GetSwitchListenerDebugInfo(string linePrefix)
 		{

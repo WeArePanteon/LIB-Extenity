@@ -43,7 +43,7 @@ namespace Extenity.ProfilingToolbox
 		{
 			if (IsStarted)
 			{
-				Extenity.Log.Error("Tried to start profiler stopwatch but it was already started.");
+				Log.Error("Tried to start profiler stopwatch but it was already started.");
 				return;
 			}
 
@@ -67,7 +67,7 @@ namespace Extenity.ProfilingToolbox
 			{
 				StartTime = 0;
 				EndTime = 0;
-				Extenity.Log.Error("Tried to end profiler stopwatch but it was not started.");
+				Log.Error("Tried to end profiler stopwatch but it was not started.");
 				return 0;
 			}
 
@@ -98,38 +98,18 @@ namespace Extenity.ProfilingToolbox
 			return elapsed;
 		}
 
-		public void EndAndLog(string profilerMessageFormat, LogCategory logCategory = LogCategory.Info)
-		{
-			End();
-			Log(profilerMessageFormat, logCategory);
-		}
-
-		public void EndAndLog(ContextObject context, string profilerMessageFormat, LogCategory logCategory = LogCategory.Info)
-		{
-			End();
-			Log(context, profilerMessageFormat, logCategory);
-		}
-
 		#region Log
 
-		public void Log(string profilerMessageFormat, LogCategory logCategory = LogCategory.Info)
+		private static readonly Logger Log = new(nameof(ProfilerStopwatch));
+
+		public string GetLogMessage(string profilerMessageFormat)
 		{
-			Extenity.Log.Any(string.Format(profilerMessageFormat, Elapsed.ToStringMinutesSecondsMillisecondsFromSeconds()), logCategory);
+			return string.Format(profilerMessageFormat, Elapsed.ToStringMinutesSecondsMillisecondsFromSeconds());
 		}
 
-		public void Log(ContextObject context, string profilerMessageFormat, LogCategory logCategory = LogCategory.Info)
+		public string GetCumulativeLogMessage(string profilerMessageFormat)
 		{
-			Extenity.Log.Any(string.Format(profilerMessageFormat, Elapsed.ToStringMinutesSecondsMillisecondsFromSeconds()), logCategory, context);
-		}
-
-		public void LogCumulative(string profilerMessageFormat, LogCategory logCategory = LogCategory.Info)
-		{
-			Extenity.Log.Any(string.Format(profilerMessageFormat, CumulativeTime.ToStringMinutesSecondsMillisecondsFromSeconds()), logCategory);
-		}
-
-		public void LogCumulative(ContextObject context, string profilerMessageFormat, LogCategory logCategory = LogCategory.Info)
-		{
-			Extenity.Log.Any(string.Format(profilerMessageFormat, CumulativeTime.ToStringMinutesSecondsMillisecondsFromSeconds()), logCategory, context);
+			return string.Format(profilerMessageFormat, CumulativeTime.ToStringMinutesSecondsMillisecondsFromSeconds());
 		}
 
 		#endregion

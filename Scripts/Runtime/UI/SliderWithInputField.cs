@@ -121,10 +121,16 @@ namespace Extenity.UIToolbox
 				}
 				else
 				{
-					Log.Error("Label UI element was not assigned.");
+					Log.ErrorWithContext(this, "Label UI element was not assigned.");
 				}
 			}
 		}
+
+		#endregion
+
+		#region Log
+
+		private static readonly Logger Log = new(nameof(SliderWithInputField));
 
 		#endregion
 	}

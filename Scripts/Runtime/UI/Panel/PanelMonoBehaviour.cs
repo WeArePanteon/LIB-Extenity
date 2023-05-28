@@ -80,7 +80,7 @@ namespace Extenity.UIToolbox
 		{
 			if (NeedToBeLinkedToPanel)
 			{
-				Log.CriticalError($"Visibility callbacks won't be called for '{this}' until a '{nameof(LinkedPanel)}' is specified in the inspector.", gameObject);
+				Log.FatalWithContext(this, $"Visibility callbacks won't be called for '{this}' until a '{nameof(LinkedPanel)}' is specified in the inspector.");
 			}
 		}
 
@@ -92,6 +92,12 @@ namespace Extenity.UIToolbox
 		}
 
 #endif
+
+		#endregion
+
+		#region Log
+
+		private static readonly Logger Log = new(nameof(PanelMonoBehaviour));
 
 		#endregion
 	}

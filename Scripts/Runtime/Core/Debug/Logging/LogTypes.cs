@@ -1,20 +1,13 @@
 namespace Extenity
 {
 
-	public enum LogCategory
+	public enum LogSeverity
 	{
 		Verbose,
 		Info,
 		Warning,
 		Error,
-		Critical,
-	}
-
-	public enum SeverityCategory
-	{
-		Warning,
-		Error,
-		Critical,
+		Fatal,
 	}
 
 }

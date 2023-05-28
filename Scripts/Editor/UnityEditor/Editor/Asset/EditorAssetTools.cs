@@ -66,7 +66,7 @@ namespace Extenity.AssetToolbox.Editor
 			var stringBuilder = new StringBuilder();
 			var fieldName = TextureTools.GenerateEmbeddedCodeForTexture(data, textureName, format, mipmapEnabled, linear, "		", ref stringBuilder);
 			Clipboard.SetClipboardText(stringBuilder.ToString(), false);
-			Log.Info($"Generated texture data as field '{fieldName}' and copied to clipboard. Path: {path}");
+			Log.InfoWithContext(texture, $"Generated texture data as field '{fieldName}' and copied to clipboard. Path: {path}");
 		}
 
 		private static void _GenerateEmbeddedCodeForImageFile(TextureFormat format)
@@ -82,7 +82,7 @@ namespace Extenity.AssetToolbox.Editor
 			var stringBuilder = new StringBuilder();
 			var fieldName = TextureTools.GenerateEmbeddedCodeForTexture(data, textureName, format, mipmapEnabled, linear, "		", ref stringBuilder);
 			Clipboard.SetClipboardText(stringBuilder.ToString(), false);
-			Log.Info($"Generated texture data as field '{fieldName}' and copied to clipboard. Path: {path}");
+			Log.InfoWithContext(texture, $"Generated texture data as field '{fieldName}' and copied to clipboard. Path: {path}");
 		}
 
 		#endregion
@@ -209,7 +209,7 @@ namespace Extenity.AssetToolbox.Editor
 			}
 			catch (Exception exception)
 			{
-				Log.Warning($"Exception was thrown while processing for texture format '{format}'. Exception: {exception.Message}");
+				Log.Error(new Exception($"Exception was thrown while processing for texture format '{format}'.", exception));
 			}
 		}
 
@@ -485,7 +485,10 @@ namespace Extenity.AssetToolbox.Editor
 			// An already loaded asset may confuse the loading process.
 			EditorSceneManagerTools.UnloadAllScenes(true);
 
-			EditorSceneManagerTools.ThrowIfAnyLoadedSceneIsDirty(Log.BuildInternalErrorMessage(105851));
+			if (EditorSceneManagerTools.IsAnyLoadedSceneDirty())
+			{
+				throw new InternalException(105851);
+			}
 
 			// Load the scene.
 			var openedScene = EditorSceneManager.OpenScene(sceneAssetPath, OpenSceneMode.Single);
@@ -592,7 +595,7 @@ namespace Extenity.AssetToolbox.Editor
 
 				if (selected != null)
 				{
-					Log.Info($"Filling field '{field.Name}' of type '{field.FieldType}' with '{selected.gameObject.FullName()}'.");
+					Log.Info($"Filling field '{field.Name}' of type '{field.FieldType}' with '{selected.FullGameObjectName()}'.");
 					Undo.RecordObject(component, "Fill Empty References");
 					field.SetValue(component, candidates[0]);
 					EditorUtility.SetDirty(component);
@@ -629,7 +632,7 @@ namespace Extenity.AssetToolbox.Editor
 		private static void CopyGameObjectPath(MenuCommand menuCommand)
 		{
 			var component = menuCommand.context as Component;
-			Clipboard.SetClipboardText(component.gameObject.FullName(), true);
+			Clipboard.SetClipboardText(component.FullGameObjectName(), true);
 		}
 
 		#endregion
@@ -648,8 +651,14 @@ namespace Extenity.AssetToolbox.Editor
 		{
 			var component = menuCommand.context as Component;
 			var json = EditorJsonUtility.ToJson(component, true);
-			Log.Info(json, component);
+			Log.InfoWithContext(component, json);
 		}
+
+		#endregion
+
+		#region Log
+
+		private static readonly Logger Log = new(nameof(EditorAssetTools));
 
 		#endregion
 	}

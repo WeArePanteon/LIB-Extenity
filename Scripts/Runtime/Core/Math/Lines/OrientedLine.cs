@@ -405,7 +405,7 @@ namespace Extenity.MathToolbox
 
 		public void StartEditing()
 		{
-			Log.Info($"Starting to edit '{gameObject.FullName()}'");
+			Log.InfoWithContext(this, $"Starting to edit '{this.FullGameObjectName()}'");
 
 			IsEditing = true;
 			var helper = gameObject.GetSingleOrAddComponent<DontShowEditorHandler>();
@@ -421,7 +421,7 @@ namespace Extenity.MathToolbox
 
 			if (IsEditing)
 			{
-				Log.Info($"Finished editing '{gameObject.FullName()}'");
+				Log.InfoWithContext(this, $"Finished editing '{this.FullGameObjectName()}'");
 				IsEditing = false;
 			}
 
@@ -467,6 +467,12 @@ namespace Extenity.MathToolbox
 		}
 
 #endif
+
+		#endregion
+
+		#region Log
+
+		private static readonly Logger Log = new(nameof(OrientedLine));
 
 		#endregion
 	}

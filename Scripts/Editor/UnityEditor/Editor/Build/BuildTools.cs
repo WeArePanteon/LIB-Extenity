@@ -110,7 +110,8 @@ namespace Extenity.BuildToolbox.Editor
 
 		public void MoveToTemp()
 		{
-			using (Log.Indent($"Moving assets to temporary outside location '{OutsideLocationBasePath}'..."))
+			Log.Info($"Moving assets to temporary outside location '{OutsideLocationBasePath}'...");
+			using (Log.IndentedScope)
 			{
 				// Delete Outside Location if it exists and contains only empty directories.
 				if (Directory.Exists(OutsideLocationBasePath) &&
@@ -126,11 +127,18 @@ namespace Extenity.BuildToolbox.Editor
 
 		public void MoveToOriginal()
 		{
-			using (Log.Indent($"Moving assets back to original location from '{OutsideLocationBasePath}'..."))
+			Log.Info($"Moving assets back to original location from '{OutsideLocationBasePath}'...");
+			using (Log.IndentedScope)
 			{
 				AssetDatabaseTools.ManuallyMoveFilesAndDirectoriesWithMetaAndEnsureCompleted(OutsidePaths, OriginalPaths, false);
 			}
 		}
+
+		#endregion
+
+		#region Log
+
+		private static readonly Logger Log = new(nameof(MoveAssetsOutsideOperation));
 
 		#endregion
 	}
@@ -222,7 +230,7 @@ namespace Extenity.BuildToolbox.Editor
 			{
 				if (logOutput)
 				{
-					Log.Info("[git] " + output);
+					Log.Info(output);
 				}
 			}
 
@@ -233,11 +241,17 @@ namespace Extenity.BuildToolbox.Editor
 				{
 					if (logError)
 					{
-						Log.Error("[git] " + error);
+						Log.Error(error);
 					}
 				}
 			}
 		}
+
+		#region Log
+
+		private static readonly Logger Log = new("Git");
+
+		#endregion
 	}
 
 	#endregion
@@ -546,7 +560,7 @@ namespace Extenity.BuildToolbox.Editor
 			}
 			catch (Exception exception)
 			{
-				Log.Error("Failed to launch file comparer. Reason: " + exception);
+				Log.Error(new Exception("Failed to launch file comparer.", exception));
 			}
 		}
 
@@ -631,13 +645,13 @@ namespace Extenity.BuildToolbox.Editor
 			                          .ToArray();
 		}
 
-		public static void TellUnityToBuild(string outputPath, BuildTargetGroup buildTargetGroup, BuildTarget buildTarget, BuildOptions buildOptions, bool runAfterBuild)
+		public static void TellUnityToBuild(string outputPath, BuildTargetGroup buildTargetGroup, BuildTarget buildTarget, BuildOptions buildOptions, string assetBundleManifestPath, bool runAfterBuild)
 		{
 			var scenes = GetUnityBuildSettingsScenes();
-			TellUnityToBuild(scenes, outputPath, buildTargetGroup, buildTarget, buildOptions, runAfterBuild);
+			TellUnityToBuild(scenes, outputPath, buildTargetGroup, buildTarget, buildOptions, assetBundleManifestPath, runAfterBuild);
 		}
 
-		public static void TellUnityToBuild(string[] scenes, string outputPath, BuildTargetGroup buildTargetGroup, BuildTarget buildTarget, BuildOptions buildOptions, bool runAfterBuild)
+		public static void TellUnityToBuild(string[] scenes, string outputPath, BuildTargetGroup buildTargetGroup, BuildTarget buildTarget, BuildOptions buildOptions, string assetBundleManifestPath, bool runAfterBuild)
 		{
 			Log.Info($"Telling Unity to start the build. More info:\n" +
 			         $"\tScenes: {string.Join("\n\t\t", scenes)}\n" +
@@ -653,7 +667,7 @@ namespace Extenity.BuildToolbox.Editor
 				targetGroup = buildTargetGroup,
 				target = buildTarget,
 				options = buildOptions.SetAutoRunPlayer(runAfterBuild),
-				//assetBundleManifestPath = ,
+				assetBundleManifestPath = assetBundleManifestPath,
 			};
 
 			var report = BuildPipeline.BuildPlayer(buildPlayerOptions);
@@ -892,6 +906,12 @@ namespace Extenity.BuildToolbox.Editor
 
 		public static bool IsBatchMode => Application.isBatchMode;
 		public static bool IsCompiling => EditorApplication.isCompiling;
+
+		#endregion
+
+		#region Log
+
+		private static readonly Logger Log = new(nameof(BuildTools));
 
 		#endregion
 	}

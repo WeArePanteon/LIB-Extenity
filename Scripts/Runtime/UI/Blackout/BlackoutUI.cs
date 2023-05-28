@@ -28,9 +28,9 @@ namespace Extenity.UIToolbox
 		public void Blackout(bool immediate = false)
 		{
 			//var justSwitchedOn = RequestCounter.Increase();
-			//LogInfo($"Blackout '{(immediate ? "immediate" : "non-immediate")}' activation requested ({RequestCounter.Counter.ToStringWithEnglishPluralPostfix("active request")})");
+			//Log.Info($"Blackout '{(immediate ? "immediate" : "non-immediate")}' activation requested ({RequestCounter.Counter.ToStringWithEnglishPluralPostfix("active request")})");
 
-			LogInfo($"Blackout '{(immediate ? "immediate" : "non-immediate")}' activation requested");
+			Log.Info($"Blackout '{(immediate ? "immediate" : "non-immediate")}' activation requested");
 
 			//if (justSwitchedOn) // Do not apply fading on consecutive calls.
 			{
@@ -48,9 +48,9 @@ namespace Extenity.UIToolbox
 		public void Clear(bool immediate = false)
 		{
 			//var justSwitchedOff = RequestCounter.Decrease();
-			//LogInfo($"Blackout '{(immediate ? "immediate" : "non-immediate")}' clear requested ({RequestCounter.Counter.ToStringWithEnglishPluralPostfix("active request")})");
+			//Log.Info($"Blackout '{(immediate ? "immediate" : "non-immediate")}' clear requested ({RequestCounter.Counter.ToStringWithEnglishPluralPostfix("active request")})");
 
-			LogInfo($"Blackout '{(immediate ? "immediate" : "non-immediate")}' clear requested");
+			Log.Info($"Blackout '{(immediate ? "immediate" : "non-immediate")}' clear requested");
 
 			//if (justSwitchedOff) // Do not apply fading on consecutive calls.
 			{
@@ -77,7 +77,7 @@ namespace Extenity.UIToolbox
 				if (Fader.FadeInDelay != 0f || Fader.FadeOutDelay != 0f)
 				{
 					UnityEditor.Undo.RecordObject(Fader, "Blackout fader delay correction");
-					Log.Warning("Blackout UI is expected to be launched immediately. So fader delays are not allowed. Fixing...", this);
+					Log.WarningWithContext(this, "Blackout UI is expected to be launched immediately. So fader delays are not allowed. Fixing...");
 					Fader.FadeInDelay = 0f;
 					Fader.FadeOutDelay = 0f;
 				}
@@ -89,13 +89,7 @@ namespace Extenity.UIToolbox
 
 		#region Log
 
-		private static LogRep Log = new LogRep("BlackoutUI");
-
-		[Conditional("EnableBlackoutUILog")]
-		private void LogInfo(string message)
-		{
-			Log.Info(message);
-		}
+		private Logger Log = new("BlackoutUI");
 
 		#endregion
 	}

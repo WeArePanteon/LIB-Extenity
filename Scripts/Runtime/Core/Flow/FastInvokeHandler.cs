@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using Extenity.DataToolbox;
+using Unity.Profiling;
 using UnityEngine;
 #if EnableOverkillLogging
 using System.Linq;
@@ -65,7 +66,7 @@ namespace Extenity.FlowToolbox
 				RepeatRate = repeatRate;
 
 #if EnableOverkillLogging
-				Log.Info($"New {(UnscaledTime ? "Unscaled-Time" : "Scaled-Time")} Invoke.  Now: {now * 1000}  Delay: {invokeTime * 1000}{(repeatRate > 0f ? $"  Repeat: {repeatRate * 1000}" : "")}");
+				Log.Verbose($"New {(UnscaledTime ? "Unscaled-Time" : "Scaled-Time")} Invoke.  Now: {now * 1000}  Delay: {invokeTime * 1000}{(repeatRate > 0f ? $"  Repeat: {repeatRate * 1000}" : "")}");
 #endif
 			}
 
@@ -93,15 +94,11 @@ namespace Extenity.FlowToolbox
 		
 		#region Update
 
+		// CustomUpdate and CustomFixedUpdate methods are almost the same.
+		// Do not forget to update both of them if you need to change something.
+		// See 11531451
 		internal void CustomFixedUpdate(double time)
 		{
-#if UNITY_EDITOR
-			if (VerboseLoggingInEachFixedUpdate)
-			{
-				Log.DebugInfo(nameof(FastInvokeHandler) + "." + nameof(CustomFixedUpdate));
-			}
-#endif
-
 			if (QueueInProcess.Count > 0)
 			{
 				Log.InternalError(7591128); // Definitely expected to be empty.
@@ -132,7 +129,7 @@ namespace Extenity.FlowToolbox
 			ScaledInvokeQueue.RemoveRange(0, QueueInProcess.Count);
 
 #if EnableOverkillLogging
-			Log.Info($"Processing {CurrentlyProcessingQueue}-Time queue ({QueueInProcess.Count}). Now: {time}:\n" +
+			Log.Verbose($"Processing {CurrentlyProcessingQueue}-Time queue ({QueueInProcess.Count}). Now: {time}:\n" +
 			         string.Join("\n", QueueInProcess.Select(entry => $"NextTime: {entry.NextTime * 1000} \t Diff: {(time - entry.NextTime) * 1000}")) + "\n\nLeft in queue:\n" +
 			         string.Join("\n", ScaledInvokeQueue.Select(entry => $"NextTime: {entry.NextTime * 1000} \t Diff: {(time - entry.NextTime) * 1000}")));
 #endif
@@ -153,11 +150,16 @@ namespace Extenity.FlowToolbox
 					try
 					{
 						CurrentlyProcessingEntryAction = entry.Action;
-						entry.Action();
+#if ENABLE_PROFILER
+						using (new ProfilerMarker(entry.Behaviour.name).Auto())
+#endif
+						{
+							entry.Action();
+						}
 					}
 					catch (Exception exception)
 					{
-						Log.Exception(exception);
+						Log.ErrorWithContext(entry.Behaviour, exception);
 					}
 					finally
 					{
@@ -179,15 +181,11 @@ namespace Extenity.FlowToolbox
 			CurrentlyProcessingQueue = InvokeQueue.Unspecified;
 		}
 
-		internal void CustomUpdate(double unscaledTime)
+		// CustomUpdate and CustomFixedUpdate methods are almost the same.
+		// Do not forget to update both of them if you need to change something.
+		// See 11531451
+		internal void CustomUpdate(double time)
 		{
-#if UNITY_EDITOR
-			if (VerboseLoggingInEachUpdate)
-			{
-				Log.DebugInfo(nameof(FastInvokeHandler) + "." + nameof(CustomUpdate));
-			}
-#endif
-
 			if (QueueInProcess.Count > 0)
 			{
 				Log.InternalError(7591128); // Definitely expected to be empty.
@@ -198,7 +196,7 @@ namespace Extenity.FlowToolbox
 			for (int i = 0; i < UnscaledInvokeQueue.Count; i++)
 			{
 				var entry = UnscaledInvokeQueue[i];
-				if (unscaledTime >= entry.NextTime - Tolerance) // Tolerance fixes the floating point calculation errors.
+				if (time >= entry.NextTime - Tolerance) // Tolerance fixes the floating point calculation errors.
 				{
 					QueueInProcess.Add(entry);
 				}
@@ -218,9 +216,9 @@ namespace Extenity.FlowToolbox
 			UnscaledInvokeQueue.RemoveRange(0, QueueInProcess.Count);
 
 #if EnableOverkillLogging
-			Log.Info($"Processing {CurrentlyProcessingQueue}-Time queue ({QueueInProcess.Count}). Now: {unscaledTime}:\n" +
-			         string.Join("\n", QueueInProcess.Select(entry => $"NextTime: {entry.NextTime * 1000} \t Diff: {(unscaledTime - entry.NextTime) * 1000}")) + "\n\nLeft in queue:\n" +
-			         string.Join("\n", UnscaledInvokeQueue.Select(entry => $"NextTime: {entry.NextTime * 1000} \t Diff: {(unscaledTime - entry.NextTime) * 1000}")));
+			Log.Verbose($"Processing {CurrentlyProcessingQueue}-Time queue ({QueueInProcess.Count}). Now: {time}:\n" +
+			         string.Join("\n", QueueInProcess.Select(entry => $"NextTime: {entry.NextTime * 1000} \t Diff: {(time - entry.NextTime) * 1000}")) + "\n\nLeft in queue:\n" +
+			         string.Join("\n", UnscaledInvokeQueue.Select(entry => $"NextTime: {entry.NextTime * 1000} \t Diff: {(time - entry.NextTime) * 1000}")));
 #endif
 
 			for (int i = 0; i < QueueInProcess.Count; i++)
@@ -238,11 +236,21 @@ namespace Extenity.FlowToolbox
 				{
 					try
 					{
-						entry.Action();
+						CurrentlyProcessingEntryAction = entry.Action;
+#if ENABLE_PROFILER
+						using (new ProfilerMarker(entry.Behaviour.name).Auto())
+#endif
+						{
+							entry.Action();
+						}
 					}
 					catch (Exception exception)
 					{
-						Log.Exception(exception);
+						Log.ErrorWithContext(entry.Behaviour, exception);
+					}
+					finally
+					{
+						CurrentlyProcessingEntryAction = null;
 					}
 				}
 
@@ -612,7 +620,7 @@ namespace Extenity.FlowToolbox
 				//
 				// Not sure about this decision of NOT throwing here, but we will stick with this until some
 				// more solid reason comes up. See 117459234.
-				Log.CriticalError("Tried to cancel fast invoke of a null behaviour.");
+				Log.Fatal("Tried to cancel fast invoke of a null behaviour.");
 				return;
 			}
 			RemoveInQueue(ScaledInvokeQueue, behaviour, action);
@@ -629,7 +637,7 @@ namespace Extenity.FlowToolbox
 				//
 				// Not sure about this decision of NOT throwing here, but we will stick with this until some
 				// more solid reason comes up. See 117459234.
-				Log.CriticalError("Tried to cancel fast invoke of a null behaviour.");
+				Log.Fatal("Tried to cancel fast invoke of a null behaviour.");
 				return;
 			}
 			RemoveInQueue(ScaledInvokeQueue, behaviour);
@@ -646,12 +654,12 @@ namespace Extenity.FlowToolbox
 				//
 				// Not sure about this decision of NOT throwing here, but we will stick with this until some
 				// more solid reason comes up. See 117459234.
-				Log.CriticalError("Tried to cancel fast invoke of a null behaviour.");
+				Log.Fatal("Tried to cancel fast invoke of a null behaviour.");
 				return;
 			}
 			if (CurrentlyProcessingEntryAction == null)
 			{
-				Log.CriticalError("Tried to cancel current fast invoke while there is none.");
+				Log.Fatal("Tried to cancel current fast invoke while there is none.");
 				return;
 			}
 			RemoveInQueue(ScaledInvokeQueue, behaviour, CurrentlyProcessingEntryAction);
@@ -672,7 +680,7 @@ namespace Extenity.FlowToolbox
 				//
 				// Not sure about this decision of NOT throwing here, but we will stick with this until some
 				// more solid reason comes up. See 117459234.
-				Log.CriticalError("Tried to query fast invoke of a null behaviour.");
+				Log.Fatal("Tried to query fast invoke of a null behaviour.");
 				return false;
 			}
 			for (int i = 0; i < ScaledInvokeQueue.Count; i++)
@@ -711,7 +719,7 @@ namespace Extenity.FlowToolbox
 				//
 				// Not sure about this decision of NOT throwing here, but we will stick with this until some
 				// more solid reason comes up. See 117459234.
-				Log.CriticalError("Tried to query fast invoke of a null behaviour.");
+				Log.Fatal("Tried to query fast invoke of a null behaviour.");
 				return false;
 			}
 			for (int i = 0; i < ScaledInvokeQueue.Count; i++)
@@ -758,7 +766,7 @@ namespace Extenity.FlowToolbox
 				//
 				// Not sure about this decision of NOT throwing here, but we will stick with this until some
 				// more solid reason comes up. See 117459234.
-				Log.CriticalError("Tried to query fast invoke of a null behaviour.");
+				Log.Fatal("Tried to query fast invoke of a null behaviour.");
 				return 0;
 			}
 			var count = 0;
@@ -796,7 +804,7 @@ namespace Extenity.FlowToolbox
 				//
 				// Not sure about this decision of NOT throwing here, but we will stick with this until some
 				// more solid reason comes up. See 117459234.
-				Log.CriticalError("Tried to query fast invoke of a null behaviour.");
+				Log.Fatal("Tried to query fast invoke of a null behaviour.");
 				return 0;
 			}
 			var count = 0;
@@ -836,7 +844,7 @@ namespace Extenity.FlowToolbox
 				//
 				// Not sure about this decision of NOT throwing here, but we will stick with this until some
 				// more solid reason comes up. See 117459234.
-				Log.CriticalError("Tried to query fast invoke of a null behaviour.");
+				Log.Fatal("Tried to query fast invoke of a null behaviour.");
 				return double.NaN;
 			}
 			return RemainingTimeUntilNextInvoke(ScaledInvokeQueue, InvokeQueue.Scaled, behaviour, action, Loop.Time);
@@ -851,7 +859,7 @@ namespace Extenity.FlowToolbox
 				//
 				// Not sure about this decision of NOT throwing here, but we will stick with this until some
 				// more solid reason comes up. See 117459234.
-				Log.CriticalError("Tried to query fast invoke of a null behaviour.");
+				Log.Fatal("Tried to query fast invoke of a null behaviour.");
 				return double.NaN;
 			}
 			return RemainingTimeUntilNextInvoke(UnscaledInvokeQueue, InvokeQueue.Unscaled, behaviour, action, Loop.UnscaledTime);
@@ -866,7 +874,7 @@ namespace Extenity.FlowToolbox
 				//
 				// Not sure about this decision of NOT throwing here, but we will stick with this until some
 				// more solid reason comes up. See 117459234.
-				Log.CriticalError("Tried to query fast invoke of a null behaviour.");
+				Log.Fatal("Tried to query fast invoke of a null behaviour.");
 				return double.NaN;
 			}
 			return RemainingTimeUntilNextInvoke(ScaledInvokeQueue, InvokeQueue.Scaled, behaviour, Loop.Time);
@@ -881,7 +889,7 @@ namespace Extenity.FlowToolbox
 				//
 				// Not sure about this decision of NOT throwing here, but we will stick with this until some
 				// more solid reason comes up. See 117459234.
-				Log.CriticalError("Tried to query fast invoke of a null behaviour.");
+				Log.Fatal("Tried to query fast invoke of a null behaviour.");
 				return double.NaN;
 			}
 			return RemainingTimeUntilNextInvoke(UnscaledInvokeQueue, InvokeQueue.Unscaled, behaviour, Loop.UnscaledTime);
@@ -937,13 +945,11 @@ namespace Extenity.FlowToolbox
 
 		#endregion
 
-		#region Verbose Logging
+		#region Log
 
 		public static bool LogWarningForNegativeInvokeTimes = true;
-#if UNITY_EDITOR
-		public static bool VerboseLoggingInEachUpdate;
-		public static bool VerboseLoggingInEachFixedUpdate;
-#endif
+
+		private static readonly Logger Log = new("FastInvoke");
 
 		#endregion
 	}

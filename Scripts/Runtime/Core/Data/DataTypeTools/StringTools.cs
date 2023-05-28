@@ -50,7 +50,7 @@ namespace Extenity.DataToolbox
 			if (stringBuilder.Capacity > SharedStringBuilderCapacityTolerance)
 			{
 				// If this happens regularly, consider increasing the tolerance.
-				Log.DebugWarning($"Shared StringBuilder size '{stringBuilder.Capacity}' exceeded the tolerance '{SharedStringBuilderCapacityTolerance}'.");
+				Log.With(nameof(SharedStringBuilder)).Warning($"Shared StringBuilder size '{stringBuilder.Capacity}' exceeded the tolerance '{SharedStringBuilderCapacityTolerance}'.");
 				stringBuilder.Capacity = SharedStringBuilderInitialCapacity;
 			}
 		}
@@ -1423,6 +1423,7 @@ namespace Extenity.DataToolbox
 
 		#region Conversions - Time
 
+		// TODO-Log: Implement a way to stream text into Log system
 		public static string ToStringMinutesSecondsMillisecondsFromSeconds(this double totalSeconds)
 		{
 			//TimeSpan t = TimeSpan.FromSeconds(seconds);
