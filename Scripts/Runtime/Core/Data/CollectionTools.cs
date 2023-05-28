@@ -598,6 +598,8 @@ namespace Extenity.DataToolbox
 			Array.Clear(array, 0, array.Length);
 		}
 
+		#endregion
+
 		#region Duplicates
 
 		public static IEnumerable<int> DuplicatesIndexed<T>(this IEnumerable<T> source)
@@ -1067,8 +1069,6 @@ namespace Extenity.DataToolbox
 
 		#endregion
 
-		#endregion
-
 		#region Order
 
 		public static IOrderedEnumerable<T> Order<T, TKey>(this IEnumerable<T> source, Func<T, TKey> selector, bool ascending)
@@ -1221,99 +1221,22 @@ namespace Extenity.DataToolbox
 		}
 
 		#endregion
-		
-		#region Register To List Event and Traverse
-
-		public static void RegisterToListEvent<TItem>(this List<TItem> list, bool ignoreIfListIsNull, Action subscriptionAction, Action<TItem> actionForEachItem)
-		{
-			if (list == null)
-			{
-				if (!ignoreIfListIsNull)
-				{
-					throw new ArgumentNullException(nameof(list), "List is null. Could not register to list events.");
-				}
-			}
-			else
-			{
-				for (int i = 0; i < list.Count; i++)
-				{
-					actionForEachItem(list[i]);
-				}
-			}
-
-			subscriptionAction();
-		}
-
-		#endregion
 
 		#region Dictionary
 
-		public static Dictionary<string, string> CreateDictionaryFromStringList(this ICollection<string> list, char keyValueSeparator = '=')
+		public static bool HasSameKeys<TKey, TValue>(this Dictionary<TKey, TValue> dictionary, in Dictionary<TKey, TValue> otherDictionary)
 		{
-			if (list == null)
-				throw new ArgumentNullException(nameof(list));
-
-			var dictionary = new Dictionary<string, string>(list.Count);
-
-			foreach (var item in list)
-			{
-				var separatorIndex = item.IndexOf(keyValueSeparator);
-				if (separatorIndex < 0)
-					throw new Exception("No separator in list item");
-
-				var key = item.Substring(0, separatorIndex);
-
-				if (string.IsNullOrEmpty(key))
-					throw new Exception("Key is empty");
-
-				var value = item.Substring(separatorIndex + 1, item.Length - separatorIndex - 1);
-				dictionary.Add(key, value);
-			}
-
-			return dictionary;
-		}
-
-		public static bool HasSameKeys<TKey, TValue>(this Dictionary<TKey, TValue> thisObj, in Dictionary<TKey, TValue> otherObj)
-		{
-			if (thisObj.Count != otherObj.Count)
+			if (dictionary.Count != otherDictionary.Count)
 				return false;
 
-			foreach (TKey key in thisObj.Keys)
+			foreach (TKey key in dictionary.Keys)
 			{
-				if (!otherObj.ContainsKey(key))
+				if (!otherDictionary.ContainsKey(key))
 					return false;
 			}
 
 			return true;
 			//return dictionary1.OrderBy(kvp => kvp.Key).SequenceEqual(dictionary2.OrderBy(kvp => kvp.Key));
-		}
-
-		public static bool HasSameKeys<TKey, TValue>(this List<TKey> thisObj, in Dictionary<TKey, TValue> dictionary)
-		{
-			if (thisObj.Count != dictionary.Count)
-				return false;
-
-			foreach (TKey key in dictionary.Keys)
-			{
-				if (!thisObj.Contains(key))
-					return false;
-			}
-
-			return true;
-		}
-
-		public static bool HasSameValues<TKey, TValue>(this List<TValue> thisObj, in Dictionary<TKey, TValue> dictionary)
-		{
-			if (thisObj.Count != dictionary.Count)
-				return false;
-
-			foreach (TValue value in dictionary.Values)
-			{
-				if (!thisObj.Contains(value))
-					return false;
-			}
-
-			return true;
 		}
 
 		/// <summary>
@@ -1330,82 +1253,36 @@ namespace Extenity.DataToolbox
 		public static TValue GetOrCreate<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, in TKey key)
 			where TValue : new()
 		{
-			if (!dictionary.TryGetValue(key, out var ret))
+			if (!dictionary.TryGetValue(key, out var value))
 			{
-				ret = new TValue();
-				dictionary[key] = ret;
+				value = new TValue();
+				dictionary[key] = value;
 			}
-			return ret;
+			return value;
 		}
 
-		/// <summary>
-		/// Returns the value associated with the specified key if there already
-		/// is one, or calls the specified delegate to create a new value which is
-		/// stored and returned.
-		/// </summary>
-		/// <typeparam name="TKey">Type of key</typeparam>
-		/// <typeparam name="TValue">Type of value</typeparam>
-		/// <param name="dictionary">Dictionary to access</param>
-		/// <param name="key">Key to lookup</param>
-		/// <param name="valueProvider">Delegate to provide new value if required</param>
-		/// <returns>Existing value in the dictionary, or new one inserted</returns>
-		public static TValue GetOrCreate<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, in TKey key, Func<TValue> valueProvider)
-		{
-			if (!dictionary.TryGetValue(key, out var ret))
-			{
-				ret = valueProvider();
-				dictionary[key] = ret;
-			}
-			return ret;
-		}
-
-		/// <summary>
-		/// Returns the value associated with the specified key if there
-		/// already is one, or inserts the default value and returns it.
-		/// </summary>
-		/// <typeparam name="TKey">Type of key</typeparam>
-		/// <typeparam name="TValue">Type of value</typeparam>
-		/// <param name="dictionary">Dictionary to access</param>
-		/// <param name="key">Key to lookup</param>
-		/// <param name="defaultValue">Value to use when key is missing</param>
-		/// <returns>Existing value in the dictionary, or new one inserted</returns>
-		public static TValue GetOrCreate<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, in TKey key, TValue defaultValue)
-		{
-			if (!dictionary.TryGetValue(key, out var ret))
-			{
-				ret = defaultValue;
-				dictionary[key] = ret;
-			}
-			return ret;
-		}
-
-		/// <summary>
-		/// Returns the value associated with the specified key if there
-		/// already is one, or returns the default value without inserting it.
-		/// </summary>
-		/// <typeparam name="TKey">Type of key</typeparam>
-		/// <typeparam name="TValue">Type of value</typeparam>
-		/// <param name="dictionary">Dictionary to access</param>
-		/// <param name="key">Key to lookup</param>
-		/// <param name="defaultValue">Value to use when key is missing</param>
-		/// <returns>Existing value in the dictionary, or new one inserted</returns>
-		public static TValue GetOrDefault<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, in TKey key, TValue defaultValue)
-		{
-			if (!dictionary.TryGetValue(key, out var ret))
-			{
-				return defaultValue;
-			}
-			return ret;
-		}
-
-		public static void AppendOrCreate<TKey, TValue>(this IDictionary<TKey, List<TValue>> dictionary, in TKey key, TValue value)
+		public static void AddToList<TKey, TValue>(this IDictionary<TKey, List<TValue>> dictionary, in TKey key, TValue value, bool useListPooling = true)
 		{
 			if (!dictionary.TryGetValue(key, out var list) || list == null)
 			{
-				list = new List<TValue>();
+				list = useListPooling
+					? New.List<TValue>()
+					: new List<TValue>();
 				dictionary.Add(key, list);
 			}
 			list.Add(value);
+		}
+
+		public static void AddUniqueToList<TKey, TValue>(this IDictionary<TKey, List<TValue>> dictionary, in TKey key, TValue value, bool useListPooling = true)
+		{
+			if (!dictionary.TryGetValue(key, out var list) || list == null)
+			{
+				list = useListPooling
+					? New.List<TValue>()
+					: new List<TValue>();
+				dictionary.Add(key, list);
+			}
+			list.AddUnique(value);
 		}
 
 		public static int AddOrIncrease<TKey>(this IDictionary<TKey, int> dictionary, in TKey key, int increment = 1, int initialValue = 1)
@@ -1421,6 +1298,27 @@ namespace Extenity.DataToolbox
 				dictionary.Add(key, value);
 			}
 			return value;
+		}
+
+		public static bool RemoveFromList<TKey, TValue>(this IDictionary<TKey, List<TValue>> dictionary, in TKey key, TValue value, bool alsoRemoveTheListIfEmpty = true, bool useListPooling = true)
+		{
+			if (!dictionary.TryGetValue(key, out var list) || list == null)
+				return false;
+
+			if (list.Remove(value))
+			{
+				if (alsoRemoveTheListIfEmpty &&
+				    list.Count == 0)
+				{
+					dictionary.Remove(key);
+					if (useListPooling)
+					{
+						Release.ListUnsafe(list);
+					}
+				}
+				return true;
+			}
+			return false;
 		}
 
 		#endregion
